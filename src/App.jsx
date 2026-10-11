@@ -8,16 +8,35 @@ import Detail from './Detail.jsx';
 import Create from './Create.jsx';
 import Groups from './Groups.jsx';
 import Profile from './Profile.jsx';
+import Quick from './Quick.jsx';
+import PublicStatus from './PublicStatus.jsx';
+import { kindOf } from './Feed.jsx';
+import { refreshPush } from './push.js';
+import { hhmm, dayName } from './time.js';
+
+const appBase = () => location.origin + location.pathname;
+
+function shareText(s, me) {
+  const k = kindOf(s);
+  const mine = s.profile_id === me?.id;
+  const who = mine ? 'Ich bin' : `${s.author?.first_name} ist`;
+  const place = s.place_name ? ` · ${s.place_name}` : '';
+  const note = s.note ? ` – ${s.note}` : '';
+  if (k === 'free') return `${who} gerade frei bis ${hhmm(s.ends_at)} Uhr 👋${note}. Wer hat Lust?`;
+  if (k === 'open') return `Kommt vorbei! ${who} bis ${hhmm(s.ends_at)} Uhr${place ? ' hier:' + place.slice(2) : ''}${note}.`;
+  return `${who} offen für ${s.activity} ${s.icon} – ${dayName(new Date(s.starts_at))}, ${hhmm(s.starts_at)}–${hhmm(s.ends_at)} Uhr${place}${note}. Wer kommt mit?`;
+}
 
 const GROUP_KEY = 'joinly-group';
 const readGroup = () => { try { return localStorage.getItem(GROUP_KEY); } catch { return null; } };
 const writeGroup = (id) => { try { localStorage.setItem(GROUP_KEY, id); } catch { /* egal */ } };
 
-function takeInviteCode() {
+function takeParams() {
   const p = new URLSearchParams(location.search);
   const code = p.get('invite');
-  if (code) history.replaceState(null, '', location.pathname);
-  return code;
+  const status = p.get('status');
+  if (code || status) history.replaceState(null, '', location.pathname);
+  return { code, status };
 }
 
 export default function App() {
@@ -31,6 +50,7 @@ export default function App() {
   const [screen, setScreen] = useState({ name: 'feed' });
   const [toast, setToast] = useState('');
   const [tick, setTick] = useState(0);
+  const [pub, setPub] = useState(null);             // geteilter Status, den man (noch) nicht in der Gruppe sieht
 
   const setGroupId = (id) => { setGroupIdRaw(id); writeGroup(id); };
 
@@ -46,11 +66,27 @@ export default function App() {
     return gs;
   }, []);
 
+  // Geteilten Status öffnen: als Mitglied in der Gruppe, sonst als Gast-Ansicht
+  const openStatusLink = useCallback(async (id, meNow, gsNow) => {
+    let data = null;
+    try { data = await api.publicStatus(id); } catch { /* egal */ }
+    if (!data) { setToast('Diesen Status gibt es nicht mehr.'); return false; }
+    const member = meNow && (gsNow || []).some(g => g.id === data.group_id && g.status === 'active');
+    if (member) {
+      setGroupIdRaw(data.group_id); writeGroup(data.group_id);
+      setScreen({ name: 'detail', id });
+    } else {
+      setPub(data);
+      setScreen({ name: 'public', id });
+    }
+    return true;
+  }, []);
+
   // Start
   useEffect(() => {
     (async () => {
       try {
-        const code = takeInviteCode();
+        const { code, status: statusLink } = takeParams();
         const { me } = await api.init();
         let inv = null;
         if (code) {
@@ -64,6 +100,10 @@ export default function App() {
           if (inv) { await api.requestJoin(inv.code); setToast(`Anfrage für „${inv.group_name}“ gesendet`); setInvite(null); }
           const gs = await reloadGroups();
           if (gs.length === 0) setScreen({ name: 'groups' });
+          if (statusLink) await openStatusLink(statusLink, me, gs);
+          refreshPush();
+        } else if (statusLink) {
+          await openStatusLink(statusLink, null, []);
         }
         setBoot({ loading: false, error: '' });
       } catch (e) {
@@ -103,6 +143,38 @@ export default function App() {
     return () => clearInterval(t);
   }, [me?.id, groups]);
 
+  // Klick auf eine Push-Nachricht, während die App offen ist
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMsg = (e) => {
+      if (e.data?.type !== 'open') return;
+      const id = new URL(e.data.url).searchParams.get('status');
+      if (id && me) reloadGroups().then(gs => openStatusLink(id, me, gs));
+    };
+    navigator.serviceWorker.addEventListener('message', onMsg);
+    return () => navigator.serviceWorker.removeEventListener('message', onMsg);
+  }, [me?.id]);
+
+  const shareStatus = async (s) => {
+    const url = `${appBase()}?status=${s.id}`;
+    const text = shareText(s, me);
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Joinly', text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
+  };
+
+  const endStatus = async (s) => {
+    try { await api.updateStatus(s.id, { ends_at: new Date().toISOString() }); await loadStatuses(); setScreen({ name: 'feed' }); setToast('Beendet'); }
+    catch (e) { setToast('Hat nicht geklappt: ' + e.message); }
+  };
+
+  const reloadPub = async () => {
+    const data = await api.publicStatus(pub.id);
+    setPub(data);
+    try { setMe(await api.init().then(r => r.me)); } catch { /* egal */ }
+  };
+
   const toggleJoin = async (s) => {
     const joined = s.participants.some(p => p.profile_id === me.id);
     // sofort anzeigen, dann speichern
@@ -113,7 +185,7 @@ export default function App() {
     }));
     try {
       if (joined) await api.leave(s.id); else await api.join(s.id);
-      if (!joined) setToast(`Du bist bei ${s.activity} dabei`);
+      if (!joined) setToast(kindOf(s) === 'open' ? 'Du kommst vorbei' : kindOf(s) === 'free' ? `Du bist dabei – meld dich bei ${s.author?.first_name}` : `Du bist bei ${s.activity} dabei`);
     } catch (e) { setToast('Hat nicht geklappt: ' + e.message); }
     loadStatuses().catch(() => {});
   };
@@ -124,6 +196,14 @@ export default function App() {
       Joinly konnte nicht starten.<br /><span className="small">{boot.error}</span>
       <div style={{ marginTop: 16 }}><button className="btn white" onClick={() => location.reload()}>Nochmal versuchen</button></div>
     </div></div>
+  );
+
+  if (screen.name === 'public' && pub) return (
+    <div className="app">
+      <PublicStatus s={pub} me={me} onMe={setMe} onReload={reloadPub}
+        onDone={async () => { setPub(null); if (me || (await api.init()).me) { const gs = await reloadGroups(); setScreen({ name: gs.length ? 'feed' : 'groups' }); } else setScreen({ name: 'feed' }); }} />
+      <Toast text={toast} onDone={() => setToast('')} />
+    </div>
   );
 
   if (!me) return (
@@ -151,15 +231,19 @@ export default function App() {
       )}
       {screen.name === 'feed' && (
         <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} loading={loadingFeed && !statuses.length}
-          onOpen={(id) => go('detail', { id })} onToggle={toggleJoin} onCreate={() => go('create')}
+          onOpen={(id) => go('detail', { id })} onToggle={toggleJoin} onCreate={() => go('create')} onQuick={(kind) => go('quick', { kind })}
           onGroups={() => go('groups')} onProfile={() => go('profile')} />
       )}
+      {screen.name === 'quick' && group && (
+        <Quick kind={screen.kind} me={me} group={group} onClose={() => go('feed')}
+          onPosted={async () => { await loadStatuses(); go('feed'); setToast(screen.kind === 'open' ? 'Deine Tür ist offen' : 'Alle sehen jetzt, dass du frei bist'); }} />
+      )}
       {screen.name === 'detail' && sel && (
-        <Detail s={sel} me={me} tick={tick} onBack={() => go('feed')} onToggle={toggleJoin} onEdit={() => go('edit', { id: sel.id })}
+        <Detail s={sel} me={me} tick={tick} onBack={() => go('feed')} onToggle={toggleJoin} onEdit={() => go('edit', { id: sel.id })} onShare={shareStatus} onEnd={endStatus}
           onDelete={async (id) => { await api.deleteStatus(id); await loadStatuses(); go('feed'); setToast('Status gelöscht'); }} />
       )}
       {screen.name === 'detail' && !sel && <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} loading
-        onOpen={(id) => go('detail', { id })} onToggle={toggleJoin} onCreate={() => go('create')} onGroups={() => go('groups')} onProfile={() => go('profile')} />}
+        onOpen={(id) => go('detail', { id })} onToggle={toggleJoin} onCreate={() => go('create')} onQuick={(kind) => go('quick', { kind })} onGroups={() => go('groups')} onProfile={() => go('profile')} />}
       {screen.name === 'create' && group && (
         <Create me={me} group={group} onClose={() => go('feed')}
           onPosted={async () => { await loadStatuses(); go('feed'); setToast('Dein Status ist online'); }} />

@@ -3,6 +3,7 @@ import { api } from './api.js';
 import { DEFAULT_ACTIVITIES } from './activities.js';
 import { Back } from './Icons.jsx';
 import PlaceSearch from './PlaceSearch.jsx';
+import { enablePush, pushState } from './push.js';
 
 export default function Profile({ me, group, onBack, onSaved, toast }) {
   const [name, setName] = useState(me.first_name || '');
@@ -11,6 +12,10 @@ export default function Profile({ me, group, onBack, onSaved, toast }) {
   const [all, setAll] = useState(!me.interests);
   const [interests, setInterests] = useState(me.interests || []);
   const [push, setPush] = useState(me.push_activities || []);
+  const [pushFree, setPushFree] = useState(me.push_free !== false);
+  const [pstate, setPstate] = useState('…');
+  useEffect(() => { pushState().then(setPstate); }, []);
+  const turnOn = async () => { try { setPstate(await enablePush()); } catch (e) { toast('Push hat nicht geklappt: ' + e.message); } };
   const [groupActs, setGroupActs] = useState([]);
   const [showAll, setShowAll] = useState(false);
 
@@ -25,7 +30,7 @@ export default function Profile({ me, group, onBack, onSaved, toast }) {
     const me2 = await api.updateProfile({
       first_name: name.trim() || me.first_name, phone: phone.trim() || me.phone,
       home_label: home?.name ?? null, home_lat: home?.lat ?? null, home_lng: home?.lng ?? null,
-      interests: all ? null : interests, push_activities: push
+      interests: all ? null : interests, push_activities: push, push_free: pushFree
     });
     onSaved(me2);
     toast('Gespeichert');
@@ -63,8 +68,17 @@ export default function Profile({ me, group, onBack, onSaved, toast }) {
       </section>
 
       <section className="stack">
-        <h2 className="label" style={{ margin: 0 }}>Push-Nachricht bei …</h2>
-        <span className="small muted">Wähl aus, bei welchen Aktivitäten du benachrichtigt werden willst. Die Nachrichten selbst kommen mit der nächsten Version.</span>
+        <h2 className="label" style={{ margin: 0 }}>Push-Nachrichten</h2>
+        {pstate === 'on' && <div className="banner">Push ist auf diesem Handy eingeschaltet ✓</div>}
+        {pstate === 'off' && <button className="btn primary block" onClick={turnOn}>Push auf diesem Handy einschalten</button>}
+        {pstate === 'install' && <div className="banner">Auf dem iPhone funktioniert Push nur, wenn Joinly auf dem Home-Bildschirm liegt: in Safari Teilen → „Zum Home-Bildschirm“, dann Joinly von dort öffnen.</div>}
+        {pstate === 'denied' && <div className="banner">Mitteilungen sind für Joinly blockiert. Du kannst sie in den Einstellungen deines Handys wieder erlauben.</div>}
+        {pstate === 'unsupported' && <div className="banner">Dieser Browser unterstützt leider keine Push-Nachrichten.</div>}
+        <div className="row between">
+          <span>Wenn jemand „gerade frei“ ist oder „Kommt vorbei“ postet</span>
+          <button className={'switch' + (pushFree ? ' on' : '')} role="switch" aria-checked={pushFree} aria-label="Push bei gerade frei und Kommt vorbei" onClick={() => setPushFree(!pushFree)} />
+        </div>
+        <span className="small muted">Wenn jemand bei deinem Status zusagt, bekommst du immer eine Nachricht. Außerdem bei diesen Aktivitäten:</span>
         <div className="chips wrap">
           {acts.map(a => (
             <button key={a.name} className={'chip accent' + (push.includes(a.name) ? ' on' : '')} onClick={() => toggle(push, setPush, a.name)}>{a.icon} {a.name}</button>

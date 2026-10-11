@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { Avatar, useExtras, homeOf, placeOf } from './common.jsx';
-import { Back, Chat, Nav, Pin, Send, Trash, WeatherIcon } from './Icons.jsx';
+import { Back, Chat, Nav, Pin, Send, Share, Trash, WeatherIcon } from './Icons.jsx';
+import { statusTexts, kindOf } from './Feed.jsx';
 import { dayLabel, hhmm } from './time.js';
 import { googleMapsUrl, appleMapsUrl, isApple } from './services.js';
 import MapView from './MapView.jsx';
 
-export default function Detail({ s, me, onBack, onToggle, onDelete, onEdit, tick }) {
+export default function Detail({ s, me, onBack, onToggle, onDelete, onEdit, onEnd, onShare, tick }) {
+  const t = statusTexts(s, me);
+  const k = kindOf(s);
   const { wx, drive } = useExtras(s, me);
   const [chatOpen, setChatOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
@@ -38,15 +41,17 @@ export default function Detail({ s, me, onBack, onToggle, onDelete, onEdit, tick
       <div className="map">
         {place ? <MapView place={place} home={homeOf(me)} /> : <div className="map-empty">{hasPlace ? s.place_name : 'Ort noch offen'}</div>}
         <button className="icon-btn map-back" onClick={onBack} aria-label="Zurück"><Back size={22} /></button>
+        <button className="icon-btn map-back" style={{ left: 'auto', right: 16 }} onClick={() => onShare(s)} aria-label="Status teilen"><Share size={20} /></button>
       </div>
 
       <div style={{ padding: '24px 20px' }} className="stack">
         <div className="col" style={{ gap: 6 }}>
           <span style={{ fontSize: 14, color: 'var(--accent)', fontWeight: 700 }}>
-            {dayLabel(new Date(s.starts_at))} · {hhmm(s.starts_at)} – {hhmm(s.ends_at)} Uhr
+            {t.live && k !== 'plan' ? t.time : `${dayLabel(new Date(s.starts_at))} · ${hhmm(s.starts_at)} – ${hhmm(s.ends_at)} Uhr`}
           </span>
-          <h1 className="h1">{s.icon} {s.activity}</h1>
-          <span className="soft">{isHost ? 'Du bist' : s.author?.first_name} offen dafür</span>
+          <h1 className="h1">{s.icon} {t.title}</h1>
+          <span className="soft">{t.sub}</span>
+          {s.note && <span className="soft" style={{ marginTop: 6, fontSize: 16, lineHeight: '22px' }}>„{s.note}“</span>}
         </div>
 
         <div className="list" style={{ marginTop: 8 }}>
@@ -68,7 +73,7 @@ export default function Detail({ s, me, onBack, onToggle, onDelete, onEdit, tick
           </div>
         </div>
 
-        {hasPlace && (
+        {hasPlace && (s.place_lat != null || s.place_address) && (
           isApple()
             ? <div className="grid2">
                 <a className="btn white block" href={googleMapsUrl(s)} target="_blank" rel="noopener"><Nav /> Google Maps</a>
@@ -104,8 +109,12 @@ export default function Detail({ s, me, onBack, onToggle, onDelete, onEdit, tick
           </div>
         )}
 
-        {isHost && (
-          <button className="btn ghost block" style={{ marginTop: 8 }} onClick={onEdit}>Status bearbeiten</button>
+        <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => onShare(s)}><Share size={18} /> Status teilen</button>
+        {isHost && k === 'plan' && (
+          <button className="btn ghost block" onClick={onEdit}>Status bearbeiten</button>
+        )}
+        {isHost && k !== 'plan' && t.live && (
+          <button className="btn ghost block" onClick={() => onEnd(s)}>Jetzt beenden</button>
         )}
         {isHost && (
           <button className="btn danger block" style={{ marginTop: 8 }} onClick={() => { if (confirm('Status löschen?')) onDelete(s.id); }}>
@@ -118,7 +127,7 @@ export default function Detail({ s, me, onBack, onToggle, onDelete, onEdit, tick
         {isHost
           ? <div className="btn ghost block" style={{ cursor: 'default' }}>Das ist dein Status</div>
           : <button className={'fab'} style={joined ? { background: 'transparent', color: '#fff', border: '1px solid #3A3A3A' } : undefined}
-              onClick={() => onToggle(s)}>{joined ? 'Du bist dabei ✓ · Absagen' : 'Bin dabei'}</button>}
+              onClick={() => onToggle(s)}>{joined ? `${t.joinedLabel} · Absagen` : t.joinLabel}</button>}
       </div></div>
     </div>
   );

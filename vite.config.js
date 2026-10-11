@@ -8,6 +8,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      injectManifest: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'] },
       includeAssets: ['apple-touch-icon.png', 'logo.png'],
       manifest: {
         name: 'Joinly – offen für …',

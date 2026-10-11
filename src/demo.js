@@ -1,5 +1,5 @@
 // Demo-Modus: gleiche Funktionen wie die echte Datenbank, aber nur im Browser.
-const KEY = 'joinly-demo-v1';
+const KEY = 'joinly-demo-v2';
 const ME = 'me';
 
 const at = (dayOffset, hhmm) => {
@@ -9,6 +9,8 @@ const at = (dayOffset, hhmm) => {
   d.setHours(h, m, 0, 0);
   return d.toISOString();
 };
+
+const rel = (min) => new Date(Date.now() + min * 60000).toISOString();
 
 function seed() {
   const people = [
@@ -40,6 +42,8 @@ function seed() {
       { id: 'st3', group_id: 'g1', profile_id: 'm', activity: 'Abendessen', icon: '🍝', starts_at: at(0, '19:00'), ends_at: at(0, '22:00'), place_mode: 'meet', place_name: 'Treffpunkt Marktplatz' },
       { id: 'st4', group_id: 'g1', profile_id: 'l', activity: 'Spazieren', icon: '🚶', starts_at: at(1, '18:00'), ends_at: at(1, '19:30'), place_mode: 'search', place_name: 'Englischer Garten', place_lat: 48.1642, place_lng: 11.6056 },
       { id: 'st5', group_id: 'g1', profile_id: 't', activity: 'Daydrinking', icon: '🍹', starts_at: at(6, '14:00'), ends_at: at(6, '18:00'), place_mode: 'none' },
+      { id: 'st7', group_id: 'g1', profile_id: 'm', kind: 'open', activity: 'Kommt vorbei', icon: '🔧', starts_at: rel(-30), ends_at: rel(180), place_mode: 'meet', place_name: 'Werkstatt', note: 'Grill ist an, bringt was zu trinken mit' },
+      { id: 'st8', group_id: 'g1', profile_id: 'a', kind: 'free', activity: 'Gerade frei', icon: '👋', starts_at: rel(-10), ends_at: rel(110), place_mode: 'none', note: 'Lust auf Kaffee oder kurz raus' },
       { id: 'st6', group_id: 'g2', profile_id: ME, activity: 'Kaffee & Kuchen', icon: '☕', starts_at: at(0, '15:00'), ends_at: at(0, '17:30'), place_mode: 'meet', place_name: 'Bei Mama' }
     ],
     participants: [
@@ -104,6 +108,14 @@ export const demoApi = {
   },
   async createStatus(s) { const st = { id: rid(), profile_id: ME, ...s }; load().statuses.push(st); changed(); return st; },
   async updateStatus(id, patch) { const st = load().statuses.find(s => s.id === id); Object.assign(st, patch); changed(); return st; },
+  async publicStatus(id) {
+    const d = load(); const s = d.statuses.find(x => x.id === id); if (!s) return null;
+    const g = d.groups.find(x => x.id === s.group_id);
+    return { ...s, group_name: g?.name, author: profile(s.profile_id),
+      participants: d.participants.filter(p => p.status_id === id).map(p => ({ profile_id: p.profile_id, profiles: profile(p.profile_id) })) };
+  },
+  async joinStatusGuest(id) { await this.join(id); },
+  async savePushSubscription() {},
   async deleteStatus(id) { db.statuses = load().statuses.filter(s => s.id !== id); changed(); },
   async join(statusId) { load().participants.push({ status_id: statusId, profile_id: ME }); changed(); },
   async leave(statusId) { db.participants = load().participants.filter(p => !(p.status_id === statusId && p.profile_id === ME)); changed(); },

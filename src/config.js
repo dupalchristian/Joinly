@@ -5,3 +5,6 @@ export const SUPABASE_URL = 'https://igfelgxeiygndnkcznar.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_7-mPe-7XHSKpuwskeeTT3A_c5QvJ8nv';
 
 export const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
+
+// Öffentlicher Schlüssel für Push-Nachrichten
+export const VAPID_PUBLIC = 'BLMbZyfZApw5sKyiWRI5c2yGFZnJDQuiX7ylwrN-rN9MrrCacjm5doFPnEJINIrrZ0FWP3gjG5VV5AOUoQ2Wga8';

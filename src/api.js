@@ -119,6 +119,18 @@ const supabaseApi = {
     return withoutMissingAddress(patch, (row) => sb.from('statuses').update(row).eq('id', statusId).select().single());
   },
 
+  async publicStatus(statusId) {
+    return check(await sb.rpc('public_status', { sid: statusId }));
+  },
+
+  async joinStatusGuest(statusId) {
+    check(await sb.rpc('join_status_guest', { sid: statusId }));
+  },
+
+  async savePushSubscription(sub) {
+    check(await sb.rpc('save_push_subscription', { ep: sub.endpoint, key_p256dh: sub.keys.p256dh, key_auth: sub.keys.auth }));
+  },
+
   async deleteStatus(statusId) {
     check(await sb.from('statuses').delete().eq('id', statusId));
   },

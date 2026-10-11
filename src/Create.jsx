@@ -29,6 +29,7 @@ export default function Create({ me, group, onClose, onPosted, existing }) {
   const [place, setPlace] = useState(ex && ex.place_mode === 'search' && ex.place_lat != null
     ? { name: ex.place_name, sub: ex.place_address, lat: ex.place_lat, lng: ex.place_lng } : null);
   const [meet, setMeet] = useState(ex && ex.place_mode === 'meet' ? ex.place_name || '' : '');
+  const [note, setNote] = useState(ex?.note || '');
   const [wx, setWx] = useState(undefined);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -66,7 +67,7 @@ export default function Create({ me, group, onClose, onPosted, existing }) {
           ? { place_mode: 'meet', place_name: meet.trim(), place_address: null, place_lat: null, place_lng: null }
           : { place_mode: 'none', place_name: null, place_address: null, place_lat: null, place_lng: null };
       const data = { activity: chosen.name, icon: chosen.icon,
-        starts_at: start.toISOString(), ends_at: end.toISOString(), ...placeData };
+        starts_at: start.toISOString(), ends_at: end.toISOString(), note: note.trim() || null, ...placeData };
       if (isEdit) await api.updateStatus(ex.id, data);
       else await api.createStatus({ group_id: group.id, ...data });
       onPosted();
@@ -177,9 +178,13 @@ export default function Create({ me, group, onClose, onPosted, existing }) {
         )}
       </section>
 
+      <label className="field">Kurze Notiz (optional)
+        <input className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} placeholder="z. B. Eher gemütlich, danach Kaffee?" />
+      </label>
+
       <div className="row muted" style={{ alignItems: 'flex-start', fontSize: 14, lineHeight: '20px' }}>
         <Bell size={18} />
-        <span>{isEdit ? 'Alle, die schon zugesagt haben, sehen die Änderung sofort.' : `Alle in „${group.name}“ sehen deinen Status sofort. Push-Nachrichten kommen in der nächsten Version.`}</span>
+        <span>{isEdit ? 'Alle, die schon zugesagt haben, sehen die Änderung sofort.' : `Alle in „${group.name}“ sehen deinen Status sofort. Wer Push für ${chosen.name || 'diese Aktivität'} eingeschaltet hat, bekommt eine Nachricht.`}</span>
       </div>
       {err && <div className="banner" style={{ color: 'var(--danger)' }}>{err}</div>}
 
