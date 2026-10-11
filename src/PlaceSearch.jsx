@@ -26,6 +26,7 @@ export default function PlaceSearch({ label, placeholder, value, onPick, near })
         <input className="input" value={q} placeholder={placeholder} autoComplete="off"
           onChange={(e) => change(e.target.value)} onFocus={() => setOpen(true)} />
       </label>
+      {!open && value?.sub && q === value.name && <span className="small muted">{value.sub}</span>}
       {open && res.length > 0 && (
         <div className="results">
           {res.map((r, i) => (

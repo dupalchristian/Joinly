@@ -3,10 +3,10 @@ import { api } from './api.js';
 import { Avatar, useExtras, homeOf, placeOf } from './common.jsx';
 import { Back, Chat, Nav, Pin, Send, Trash, WeatherIcon } from './Icons.jsx';
 import { dayLabel, hhmm } from './time.js';
-import { routeUrl } from './services.js';
+import { googleMapsUrl, appleMapsUrl, isApple } from './services.js';
 import MapView from './MapView.jsx';
 
-export default function Detail({ s, me, onBack, onToggle, onDelete, tick }) {
+export default function Detail({ s, me, onBack, onToggle, onDelete, onEdit, tick }) {
   const { wx, drive } = useExtras(s, me);
   const [chatOpen, setChatOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
@@ -55,7 +55,7 @@ export default function Detail({ s, me, onBack, onToggle, onDelete, tick }) {
             <div className="col" style={{ gap: 2 }}>
               <span style={{ fontWeight: 600 }}>{hasPlace ? s.place_name : 'Ort noch offen'}</span>
               <span className="small muted">
-                {s.place_mode === 'meet' ? 'Treffpunkt' : hasPlace ? (drive ? `${drive.km} km · ca. ${drive.min} Min. mit dem Auto` : (homeOf(me) ? 'Fahrzeit wird berechnet …' : 'Heimadresse im Profil eintragen für die Fahrzeit')) : 'Wird im Chat ausgemacht'}
+                {s.place_mode === 'meet' ? 'Treffpunkt' : hasPlace && s.place_address && !drive ? s.place_address : hasPlace ? (drive ? `${drive.km} km · ca. ${drive.min} Min. mit dem Auto` : (homeOf(me) ? 'Fahrzeit wird berechnet …' : 'Heimadresse im Profil eintragen für die Fahrzeit')) : 'Wird im Chat ausgemacht'}
               </span>
             </div>
           </div>
@@ -69,7 +69,12 @@ export default function Detail({ s, me, onBack, onToggle, onDelete, tick }) {
         </div>
 
         {hasPlace && (
-          <a className="btn white block" href={routeUrl(s)} target="_blank" rel="noopener"><Nav /> Route starten</a>
+          isApple()
+            ? <div className="grid2">
+                <a className="btn white block" href={googleMapsUrl(s)} target="_blank" rel="noopener"><Nav /> Google Maps</a>
+                <a className="btn white block" href={appleMapsUrl(s)} target="_blank" rel="noopener"><Nav /> Apple Karten</a>
+              </div>
+            : <a className="btn white block" href={googleMapsUrl(s)} target="_blank" rel="noopener"><Nav /> Route starten</a>
         )}
 
         <div className="stack" style={{ marginTop: 12 }}>
@@ -99,6 +104,9 @@ export default function Detail({ s, me, onBack, onToggle, onDelete, tick }) {
           </div>
         )}
 
+        {isHost && (
+          <button className="btn ghost block" style={{ marginTop: 8 }} onClick={onEdit}>Status bearbeiten</button>
+        )}
         {isHost && (
           <button className="btn danger block" style={{ marginTop: 8 }} onClick={() => { if (confirm('Status löschen?')) onDelete(s.id); }}>
             <Trash size={18} /> Status löschen

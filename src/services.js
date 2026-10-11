@@ -84,10 +84,21 @@ export async function driveInfo(from, to) {
   });
 }
 
-export function routeUrl(s) {
-  const dest = s.place_lat != null ? `${s.place_lat},${s.place_lng}` : encodeURIComponent(s.place_name || '');
-  const isApple = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  return isApple
-    ? `https://maps.apple.com/?daddr=${dest}&dirflg=d`
-    : `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
+export const isApple = () => /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+
+// Ziel als Text (Name + Adresse), damit die Karten-App den richtigen Ort mit Namen anzeigt.
+// Ohne Adresse: Koordinaten, sonst nur der Name.
+function destination(s) {
+  if (s.place_address) return `${s.place_name}, ${s.place_address}`;
+  if (s.place_lat != null) return `${s.place_lat},${s.place_lng}`;
+  return s.place_name || '';
+}
+
+export function googleMapsUrl(s) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination(s))}&travelmode=driving`;
+}
+
+export function appleMapsUrl(s) {
+  const ll = s.place_lat != null ? `&ll=${s.place_lat},${s.place_lng}` : '';
+  return `https://maps.apple.com/?daddr=${encodeURIComponent(destination(s))}&dirflg=d${ll}`;
 }

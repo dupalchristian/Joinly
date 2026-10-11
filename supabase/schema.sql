@@ -61,6 +61,7 @@ create table if not exists public.statuses (
   ends_at timestamptz not null,
   place_mode text not null default 'none' check (place_mode in ('none', 'search', 'meet')),
   place_name text,
+  place_address text,
   place_lat double precision,
   place_lng double precision,
   note text,
@@ -211,3 +212,6 @@ do $$ begin
   begin alter publication supabase_realtime add table public.messages; exception when others then null; end;
   begin alter publication supabase_realtime add table public.memberships; exception when others then null; end;
 end $$;
+
+-- Nachträge
+alter table public.statuses add column if not exists place_address text;

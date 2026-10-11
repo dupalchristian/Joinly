@@ -5,28 +5,30 @@ import { homeOf } from './common.jsx';
 import { Bell, Close, WeatherIcon } from './Icons.jsx';
 import PlaceSearch from './PlaceSearch.jsx';
 import { weatherFor, FALLBACK_POS } from './services.js';
-import { addDays, combine, dayChip, dayName, nextHalfHour, startOfDay, timeOptions } from './time.js';
+import { addDays, combine, dayChip, dayDiff, dayName, hhmm, nextHalfHour, startOfDay, timeOptions } from './time.js';
 
 const TIMES = timeOptions();
 const plus2h = (t) => { const i = TIMES.indexOf(t); return TIMES[Math.min(TIMES.length - 1, (i < 0 ? 0 : i) + 4)]; };
 
-export default function Create({ me, group, onClose, onPosted }) {
+export default function Create({ me, group, onClose, onPosted, existing }) {
+  const ex = existing;
   const now = new Date();
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startOfDay(now), i)), []);
   const [groupActs, setGroupActs] = useState([]);
-  const [act, setAct] = useState(DEFAULT_ACTIVITIES[0]);
+  const [act, setAct] = useState(ex ? { name: ex.activity, icon: ex.icon } : DEFAULT_ACTIVITIES[0]);
   const [showAll, setShowAll] = useState(false);
   const [filter, setFilter] = useState('');
   const [custom, setCustom] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customIcon, setCustomIcon] = useState('✨');
-  const [day, setDay] = useState(0);
+  const [day, setDay] = useState(ex ? Math.min(6, Math.max(0, dayDiff(new Date(ex.starts_at), now))) : 0);
   const first = TIMES.includes(nextHalfHour(now)) ? nextHalfHour(now) : '09:00';
-  const [from, setFrom] = useState(first);
-  const [to, setTo] = useState(plus2h(first));
-  const [mode, setMode] = useState('search');
-  const [place, setPlace] = useState(null);
-  const [meet, setMeet] = useState('');
+  const [from, setFrom] = useState(ex ? hhmm(ex.starts_at) : first);
+  const [to, setTo] = useState(ex ? hhmm(ex.ends_at) : plus2h(first));
+  const [mode, setMode] = useState(ex ? ex.place_mode : 'search');
+  const [place, setPlace] = useState(ex && ex.place_mode === 'search' && ex.place_lat != null
+    ? { name: ex.place_name, sub: ex.place_address, lat: ex.place_lat, lng: ex.place_lng } : null);
+  const [meet, setMeet] = useState(ex && ex.place_mode === 'meet' ? ex.place_name || '' : '');
   const [wx, setWx] = useState(undefined);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -50,6 +52,7 @@ export default function Create({ me, group, onClose, onPosted }) {
   const all = DEFAULT_ACTIVITIES.filter(a => a.name.toLowerCase().includes(filter.toLowerCase()));
   const chosen = custom ? { name: customName.trim(), icon: customIcon } : act;
   const timeOk = end > start && end > now;
+  const isEdit = !!ex;
   const ok = chosen.name && timeOk && !busy;
 
   const post = async () => {
@@ -58,17 +61,17 @@ export default function Create({ me, group, onClose, onPosted }) {
     try {
       if (custom) await api.addGroupActivity(group.id, chosen.name, chosen.icon);
       const placeData = mode === 'search' && place
-        ? { place_mode: 'search', place_name: place.name, place_lat: place.lat, place_lng: place.lng }
+        ? { place_mode: 'search', place_name: place.name, place_address: place.sub || null, place_lat: place.lat, place_lng: place.lng }
         : mode === 'meet' && meet.trim()
-          ? { place_mode: 'meet', place_name: meet.trim() }
-          : { place_mode: 'none', place_name: null };
-      await api.createStatus({
-        group_id: group.id, activity: chosen.name, icon: chosen.icon,
-        starts_at: start.toISOString(), ends_at: end.toISOString(), ...placeData
-      });
+          ? { place_mode: 'meet', place_name: meet.trim(), place_address: null, place_lat: null, place_lng: null }
+          : { place_mode: 'none', place_name: null, place_address: null, place_lat: null, place_lng: null };
+      const data = { activity: chosen.name, icon: chosen.icon,
+        starts_at: start.toISOString(), ends_at: end.toISOString(), ...placeData };
+      if (isEdit) await api.updateStatus(ex.id, data);
+      else await api.createStatus({ group_id: group.id, ...data });
       onPosted();
     } catch (e) {
-      setErr('Posten hat nicht geklappt: ' + e.message);
+      setErr((isEdit ? 'Speichern' : 'Posten') + ' hat nicht geklappt: ' + e.message);
       setBusy(false);
     }
   };
@@ -77,7 +80,7 @@ export default function Create({ me, group, onClose, onPosted }) {
     <div className="screen stack" style={{ gap: 26 }}>
       <div className="row" style={{ paddingTop: 6 }}>
         <button className="icon-btn" onClick={onClose} aria-label="Abbrechen"><Close /></button>
-        <h1 className="h2">Ich bin offen für …</h1>
+        <h1 className="h2">{isEdit ? 'Status bearbeiten' : 'Ich bin offen für …'}</h1>
       </div>
 
       <section className="stack">
@@ -176,13 +179,13 @@ export default function Create({ me, group, onClose, onPosted }) {
 
       <div className="row muted" style={{ alignItems: 'flex-start', fontSize: 14, lineHeight: '20px' }}>
         <Bell size={18} />
-        <span>Alle in „{group.name}“ sehen deinen Status sofort. Push-Nachrichten kommen in der nächsten Version.</span>
+        <span>{isEdit ? 'Alle, die schon zugesagt haben, sehen die Änderung sofort.' : `Alle in „${group.name}“ sehen deinen Status sofort. Push-Nachrichten kommen in der nächsten Version.`}</span>
       </div>
       {err && <div className="banner" style={{ color: 'var(--danger)' }}>{err}</div>}
 
       <div className="bottom"><div className="bottom-inner">
         <button className="fab" disabled={!ok} onClick={post} style={!ok ? { opacity: 0.5 } : undefined}>
-          {busy ? 'Wird gepostet …' : 'Status posten'}
+          {busy ? 'Wird gespeichert …' : isEdit ? 'Änderungen speichern' : 'Status posten'}
         </button>
       </div></div>
     </div>

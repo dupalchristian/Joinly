@@ -16,6 +16,16 @@ const check = ({ data, error }) => {
   return data;
 };
 
+// Falls die Spalte place_address in der Datenbank noch fehlt: ohne sie speichern
+async function withoutMissingAddress(row, run) {
+  const res = await run(row);
+  if (res.error && /place_address/.test(res.error.message)) {
+    const { place_address, ...rest } = row;
+    return check(await run(rest));
+  }
+  return check(res);
+}
+
 async function uid() {
   const { data } = await sb.auth.getSession();
   return data.session?.user?.id ?? null;
@@ -102,7 +112,11 @@ const supabaseApi = {
 
   async createStatus(s) {
     const id = await uid();
-    return check(await sb.from('statuses').insert({ ...s, profile_id: id }).select().single());
+    return withoutMissingAddress(s, (row) => sb.from('statuses').insert({ ...row, profile_id: id }).select().single());
+  },
+
+  async updateStatus(statusId, patch) {
+    return withoutMissingAddress(patch, (row) => sb.from('statuses').update(row).eq('id', statusId).select().single());
   },
 
   async deleteStatus(statusId) {

@@ -103,6 +103,7 @@ export const demoApi = {
         participants: d.participants.filter(p => p.status_id === s.id).map(p => ({ profile_id: p.profile_id, profiles: profile(p.profile_id) })) }));
   },
   async createStatus(s) { const st = { id: rid(), profile_id: ME, ...s }; load().statuses.push(st); changed(); return st; },
+  async updateStatus(id, patch) { const st = load().statuses.find(s => s.id === id); Object.assign(st, patch); changed(); return st; },
   async deleteStatus(id) { db.statuses = load().statuses.filter(s => s.id !== id); changed(); },
   async join(statusId) { load().participants.push({ status_id: statusId, profile_id: ME }); changed(); },
   async leave(statusId) { db.participants = load().participants.filter(p => !(p.status_id === statusId && p.profile_id === ME)); changed(); },

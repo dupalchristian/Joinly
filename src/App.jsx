@@ -155,7 +155,7 @@ export default function App() {
           onGroups={() => go('groups')} onProfile={() => go('profile')} />
       )}
       {screen.name === 'detail' && sel && (
-        <Detail s={sel} me={me} tick={tick} onBack={() => go('feed')} onToggle={toggleJoin}
+        <Detail s={sel} me={me} tick={tick} onBack={() => go('feed')} onToggle={toggleJoin} onEdit={() => go('edit', { id: sel.id })}
           onDelete={async (id) => { await api.deleteStatus(id); await loadStatuses(); go('feed'); setToast('Status gelöscht'); }} />
       )}
       {screen.name === 'detail' && !sel && <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} loading
@@ -163,6 +163,10 @@ export default function App() {
       {screen.name === 'create' && group && (
         <Create me={me} group={group} onClose={() => go('feed')}
           onPosted={async () => { await loadStatuses(); go('feed'); setToast('Dein Status ist online'); }} />
+      )}
+      {screen.name === 'edit' && group && statuses.find(s => s.id === screen.id) && (
+        <Create me={me} group={group} existing={statuses.find(s => s.id === screen.id)} onClose={() => go('detail', { id: screen.id })}
+          onPosted={async () => { await loadStatuses(); go('detail', { id: screen.id }); setToast('Änderungen gespeichert'); }} />
       )}
       {screen.name === 'groups' && (
         <Groups me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} tick={tick}
