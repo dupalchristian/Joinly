@@ -1,5 +1,5 @@
 // Demo-Modus: gleiche Funktionen wie die echte Datenbank, aber nur im Browser.
-const KEY = 'joinly-demo-v2';
+const KEY = 'joinly-demo-v3';
 const ME = 'me';
 
 const at = (dayOffset, hhmm) => {
@@ -14,10 +14,10 @@ const rel = (min) => new Date(Date.now() + min * 60000).toISOString();
 
 function seed() {
   const people = [
-    { id: 's', first_name: 'Stefan', avatar_color: '#3B4A5A' },
+    { id: 's', first_name: 'Stefan', avatar_color: '#3B4A5A', avatar_emoji: '🦊' },
     { id: 'a', first_name: 'Anna', avatar_color: '#5A3B4A' },
     { id: 'm', first_name: 'Markus', avatar_color: '#3B5A45' },
-    { id: 'l', first_name: 'Lisa', avatar_color: '#5A513B' },
+    { id: 'l', first_name: 'Lisa', avatar_color: '#5A513B', avatar_emoji: '🌻' },
     { id: 't', first_name: 'Tom', avatar_color: '#463B5A' },
     { id: 'p', first_name: 'Paul', avatar_color: '#2E2E2E' }
   ];
@@ -116,6 +116,7 @@ export const demoApi = {
   },
   async joinStatusGuest(id) { await this.join(id); },
   async savePushSubscription() {},
+  async uploadAvatar(blob) { return await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); }); },
   async deleteStatus(id) { db.statuses = load().statuses.filter(s => s.id !== id); changed(); },
   async join(statusId) { load().participants.push({ status_id: statusId, profile_id: ME }); changed(); },
   async leave(statusId) { db.participants = load().participants.filter(p => !(p.status_id === statusId && p.profile_id === ME)); changed(); },

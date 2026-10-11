@@ -9,7 +9,16 @@ if (!DEMO) {
   });
 }
 
-const PUBLIC_FIELDS = ['first_name', 'phone', 'avatar_color'];
+// Profilbild-Spalten gibt es erst nach Update 3 – bis dahin ohne sie weiterarbeiten
+let AV = 'avatar_color, avatar_url, avatar_emoji';
+const missingAvatar = (e) => /avatar_url|avatar_emoji/.test(e?.message || '');
+async function q(build) {
+  let res = await build();
+  if (res.error && missingAvatar(res.error) && AV !== 'avatar_color') { AV = 'avatar_color'; res = await build(); }
+  return check(res);
+}
+
+const PUBLIC_FIELDS = ['first_name', 'phone', 'avatar_color', 'avatar_url', 'avatar_emoji'];
 
 const check = ({ data, error }) => {
   if (error) throw new Error(error.message);
@@ -59,7 +68,14 @@ const supabaseApi = {
     const id = await uid();
     const pub = {}, priv = {};
     for (const [k, v] of Object.entries(patch)) (PUBLIC_FIELDS.includes(k) ? pub : priv)[k] = v;
-    if (Object.keys(pub).length) check(await sb.from('profiles').upsert({ id, ...pub }));
+    if (Object.keys(pub).length) {
+      let res = await sb.from('profiles').upsert({ id, ...pub });
+      if (res.error && missingAvatar(res.error)) {
+        const { avatar_url, avatar_emoji, ...rest } = pub;
+        res = await sb.from('profiles').upsert({ id, ...rest });
+      }
+      check(res);
+    }
     if (Object.keys(priv).length) check(await sb.from('profile_private').upsert({ id, ...priv }));
     return this.loadMe(id);
   },
@@ -87,8 +103,8 @@ const supabaseApi = {
   },
 
   async listMembers(groupId) {
-    const rows = check(await sb.from('memberships')
-      .select('role, status, profile_id, profiles(id, first_name, phone, avatar_color)')
+    const rows = await q(() => sb.from('memberships')
+      .select(`role, status, profile_id, profiles(id, first_name, phone, ${AV})`)
       .eq('group_id', groupId));
     return rows.map(r => ({ role: r.role, status: r.status, profile: r.profiles ?? { id: r.profile_id, first_name: 'Neu', phone: '' } }));
   },
@@ -102,8 +118,8 @@ const supabaseApi = {
   },
 
   async listStatuses(groupId, fromIso, toIso) {
-    return check(await sb.from('statuses')
-      .select('*, author:profiles!statuses_profile_id_fkey(id, first_name, avatar_color), participants(profile_id, profiles(id, first_name, avatar_color))')
+    return q(() => sb.from('statuses')
+      .select(`*, author:profiles!statuses_profile_id_fkey(id, first_name, ${AV}), participants(profile_id, profiles(id, first_name, ${AV}))`)
       .eq('group_id', groupId)
       .gte('ends_at', fromIso)
       .lte('starts_at', toIso)
@@ -131,6 +147,15 @@ const supabaseApi = {
     check(await sb.rpc('save_push_subscription', { ep: sub.endpoint, key_p256dh: sub.keys.p256dh, key_auth: sub.keys.auth }));
   },
 
+  // Profilbild hochladen (bereits verkleinert als JPEG-Blob)
+  async uploadAvatar(blob) {
+    const id = await uid();
+    const path = `${id}/avatar-${Date.now()}.jpg`;
+    const { error } = await sb.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+    if (error) throw new Error(error.message);
+    return sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+  },
+
   async deleteStatus(statusId) {
     check(await sb.from('statuses').delete().eq('id', statusId));
   },
@@ -146,8 +171,8 @@ const supabaseApi = {
   },
 
   async listMessages(statusId) {
-    return check(await sb.from('messages')
-      .select('*, profiles(id, first_name, avatar_color)')
+    return q(() => sb.from('messages')
+      .select(`*, profiles(id, first_name, ${AV})`)
       .eq('status_id', statusId).order('created_at'));
   },
 

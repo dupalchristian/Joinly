@@ -50,7 +50,8 @@ export default function App() {
   const [screen, setScreen] = useState({ name: 'feed' });
   const [toast, setToast] = useState('');
   const [tick, setTick] = useState(0);
-  const [pub, setPub] = useState(null);             // geteilter Status, den man (noch) nicht in der Gruppe sieht
+  const [pub, setPub] = useState(null);
+  const [members, setMembers] = useState([]);             // geteilter Status, den man (noch) nicht in der Gruppe sieht
 
   const setGroupId = (id) => { setGroupIdRaw(id); writeGroup(id); };
 
@@ -135,6 +136,12 @@ export default function App() {
     window.addEventListener('focus', onFocus);
     return () => { live = false; unsub(); clearTimeout(t); window.removeEventListener('focus', onFocus); };
   }, [me?.id, groupId]);
+
+  // Mitglieder der Gruppe (für die Status-Kreise)
+  useEffect(() => {
+    if (!me || !groupId) { setMembers([]); return; }
+    api.listMembers(groupId).then(setMembers).catch(() => {});
+  }, [me?.id, groupId, tick]);
 
   // Ausstehende Freigabe regelmäßig prüfen
   useEffect(() => {
@@ -230,7 +237,7 @@ export default function App() {
         </div>
       )}
       {screen.name === 'feed' && (
-        <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} loading={loadingFeed && !statuses.length}
+        <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} members={members} loading={loadingFeed && !statuses.length}
           onOpen={(id) => go('detail', { id })} onToggle={toggleJoin} onCreate={() => go('create')} onQuick={(kind) => go('quick', { kind })}
           onGroups={() => go('groups')} onProfile={() => go('profile')} />
       )}
@@ -242,7 +249,7 @@ export default function App() {
         <Detail s={sel} me={me} tick={tick} onBack={() => go('feed')} onToggle={toggleJoin} onEdit={() => go('edit', { id: sel.id })} onShare={shareStatus} onEnd={endStatus}
           onDelete={async (id) => { await api.deleteStatus(id); await loadStatuses(); go('feed'); setToast('Status gelöscht'); }} />
       )}
-      {screen.name === 'detail' && !sel && <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} loading
+      {screen.name === 'detail' && !sel && <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} members={members} loading
         onOpen={(id) => go('detail', { id })} onToggle={toggleJoin} onCreate={() => go('create')} onQuick={(kind) => go('quick', { kind })} onGroups={() => go('groups')} onProfile={() => go('profile')} />}
       {screen.name === 'create' && group && (
         <Create me={me} group={group} onClose={() => go('feed')}

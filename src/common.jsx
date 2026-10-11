@@ -2,13 +2,22 @@ import { useEffect, useState } from 'react';
 import { weatherFor, driveInfo, FALLBACK_POS } from './services.js';
 import { WeatherIcon } from './Icons.jsx';
 
-export function Avatar({ p, me, lg }) {
+// Profilbild > eigener Avatar (Symbol auf Farbe) > Anfangsbuchstabe
+export function Avatar({ p, me, lg, size, ring }) {
   const isMe = me && p?.id === me.id;
-  const ini = isMe ? 'Du' : (p?.first_name || '?').charAt(0).toUpperCase();
+  const px = size || (lg ? 40 : 30);
+  const style = { width: px, height: px, fontSize: Math.round(px * (p?.avatar_emoji ? 0.55 : 0.36)) };
+  if (ring) style.boxShadow = `0 0 0 2px var(--bg), 0 0 0 ${ring === 'live' ? 4 : 3.5}px ${ring === 'live' ? 'var(--accent)' : '#8C7A4E'}`;
+  if (p?.avatar_url) {
+    return <div className={'avatar' + (lg || size ? ' lg' : '')} style={{ ...style, padding: 0, overflow: 'hidden', background: '#222' }} title={p.first_name}>
+      <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+    </div>;
+  }
+  const bg = p?.avatar_emoji ? (p.avatar_color || '#2E2E2E') : isMe ? undefined : (p?.avatar_color || '#2E2E2E');
+  const content = p?.avatar_emoji || (isMe ? 'Du' : (p?.first_name || '?').charAt(0).toUpperCase());
   return (
-    <div className={'avatar' + (isMe ? ' me' : '') + (lg ? ' lg' : '')}
-      style={isMe ? undefined : { background: p?.avatar_color || '#2E2E2E' }}
-      title={p?.first_name}>{ini}</div>
+    <div className={'avatar' + (isMe && !p?.avatar_emoji ? ' me' : '') + (lg || size ? ' lg' : '')}
+      style={{ ...style, ...(bg ? { background: bg } : {}) }} title={p?.first_name}>{content}</div>
   );
 }
 

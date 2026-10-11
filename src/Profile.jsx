@@ -4,10 +4,12 @@ import { DEFAULT_ACTIVITIES } from './activities.js';
 import { Back } from './Icons.jsx';
 import PlaceSearch from './PlaceSearch.jsx';
 import { enablePush, pushState } from './push.js';
+import AvatarEditor from './AvatarEditor.jsx';
 
 export default function Profile({ me, group, onBack, onSaved, toast }) {
   const [name, setName] = useState(me.first_name || '');
   const [phone, setPhone] = useState(me.phone || '');
+  const [av, setAv] = useState({ avatar_url: me.avatar_url || null, avatar_emoji: me.avatar_emoji || null, avatar_color: me.avatar_color || '#2E2E2E' });
   const [home, setHome] = useState(me.home_lat != null ? { name: me.home_label, lat: me.home_lat, lng: me.home_lng } : null);
   const [all, setAll] = useState(!me.interests);
   const [interests, setInterests] = useState(me.interests || []);
@@ -28,7 +30,7 @@ export default function Profile({ me, group, onBack, onSaved, toast }) {
 
   const save = async () => {
     const me2 = await api.updateProfile({
-      first_name: name.trim() || me.first_name, phone: phone.trim() || me.phone,
+      first_name: name.trim() || me.first_name, phone: phone.trim() || me.phone, ...av,
       home_label: home?.name ?? null, home_lat: home?.lat ?? null, home_lng: home?.lng ?? null,
       interests: all ? null : interests, push_activities: push, push_free: pushFree
     });
@@ -42,6 +44,8 @@ export default function Profile({ me, group, onBack, onSaved, toast }) {
         <button className="icon-btn" onClick={onBack} aria-label="Zurück"><Back /></button>
         <h1 className="h2">Profil & Einstellungen</h1>
       </div>
+
+      <AvatarEditor me={me} value={av} onChange={setAv} toast={toast} />
 
       <section className="stack">
         <label className="field">Vorname<input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} /></label>

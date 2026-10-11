@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Avatar, useExtras, WeatherBadge, placeText } from './common.jsx';
+import { buildStories, StoryRow, StoryViewer } from './Stories.jsx';
 import { Pin, Plus, Users } from './Icons.jsx';
 import { dayLabel, hhmm, longDate, startOfDay } from './time.js';
 
@@ -53,8 +54,9 @@ function StatusCard({ s, me, onOpen, onToggle }) {
   );
 }
 
-export default function Feed({ me, groups, groupId, setGroupId, statuses, loading, onOpen, onToggle, onCreate, onQuick, onGroups, onProfile }) {
+export default function Feed({ me, groups, groupId, setGroupId, statuses, members = [], loading, onOpen, onToggle, onCreate, onQuick, onGroups, onProfile }) {
   const now = useClock();
+  const [story, setStory] = useState(null);
   const group = groups.find(g => g.id === groupId);
   const active = groups.filter(g => g.status === 'active');
   const pending = groups.filter(g => g.status === 'pending');
@@ -73,6 +75,7 @@ export default function Feed({ me, groups, groupId, setGroupId, statuses, loadin
     sec.items.push(s);
   }
   sections.sort((a, b) => a.key - b.key);
+  const stories = buildStories(visible, members, me, now);
 
   return (
     <div className="screen">
@@ -81,7 +84,7 @@ export default function Feed({ me, groups, groupId, setGroupId, statuses, loadin
         <div className="row" style={{ gap: 8 }}>
           <button className="icon-btn" onClick={onGroups} aria-label="Gruppen"><Users /></button>
           <button onClick={onProfile} aria-label="Profil" style={{ all: 'unset', cursor: 'pointer' }}>
-            <div className="avatar me lg" style={{ border: 'none' }}>Du</div>
+            <Avatar p={me} me={me} lg />
           </button>
         </div>
       </div>
@@ -100,6 +103,12 @@ export default function Feed({ me, groups, groupId, setGroupId, statuses, loadin
         </div>
       )}
       {active.length === 1 && <div className="label" style={{ marginTop: 22 }}>{group?.name}</div>}
+
+      {group && <StoryRow stories={stories} me={me} onOpen={setStory} onCreate={onCreate} />}
+      {story !== null && (
+        <StoryViewer stories={stories} start={story} me={me} onClose={() => setStory(null)} onToggle={onToggle}
+          onDetails={(id) => { setStory(null); onOpen(id); }} />
+      )}
 
       {group && (
         <div className="grid2" style={{ marginTop: 18 }}>
