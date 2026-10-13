@@ -98,6 +98,16 @@ export default function Groups({ me, groups, groupId, setGroupId, onBack, reload
                     {m.role === 'admin' && <span className="small" style={{ color: 'var(--accent)' }}>Admin</span>}
                   </div>
                   {isAdmin && m.profile.id !== me.id && (
+                    <button className="btn ghost" style={{ height: 36, fontSize: 13, padding: '0 12px' }}
+                      onClick={async () => {
+                        const pin = prompt(`Neue 6-stellige PIN für ${m.profile.first_name}:`);
+                        if (!pin) return;
+                        if (!/^\d{6}$/.test(pin)) { toast('Die PIN muss genau 6 Ziffern haben'); return; }
+                        try { await api.adminResetPin(m.profile.id, pin); toast(`Neue PIN für ${m.profile.first_name} gesetzt`); }
+                        catch (e) { toast(e.message); }
+                      }}>PIN</button>
+                  )}
+                  {isAdmin && m.profile.id !== me.id && (
                     <button className="btn ghost" style={{ height: 36, fontSize: 13 }}
                       onClick={async () => { if (confirm(`${m.profile.first_name} aus der Gruppe entfernen?`)) { await api.removeMember(group.id, m.profile.id); loadMembers(); } }}>Entfernen</button>
                   )}

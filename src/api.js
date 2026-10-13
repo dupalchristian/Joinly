@@ -35,6 +35,22 @@ async function withoutMissingAddress(row, run) {
   return check(res);
 }
 
+// Handynummer → feste Anmelde-Adresse (es werden keine E-Mails verschickt)
+export function phoneEmail(phone) {
+  let d = String(phone).replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  else if (d.startsWith('0')) d = '49' + d.slice(1);
+  return `${d}@nutzer.joinly.app`;
+}
+const pinPassword = (pin) => 'jl-' + pin;
+
+// Alte Geräte-Anmeldung (ohne PIN) mit Profil? Dann Übernahme vorbereiten.
+async function transferToken() {
+  const { data } = await sb.auth.getSession();
+  if (!data.session?.user?.is_anonymous) return null;
+  try { return check(await sb.rpc('create_transfer')); } catch { return null; }
+}
+
 async function uid() {
   const { data } = await sb.auth.getSession();
   return data.session?.user?.id ?? null;
@@ -44,20 +60,55 @@ const supabaseApi = {
   demo: false,
 
   async init() {
-    let id = await uid();
-    if (!id) {
-      check(await sb.auth.signInAnonymously());
-      id = await uid();
-    }
-    return { userId: id, me: await this.loadMe(id) };
+    const { data } = await sb.auth.getSession();
+    const user = data.session?.user;
+    if (!user) return { userId: null, me: null, anonymous: false };
+    return { userId: user.id, me: await this.loadMe(user.id), anonymous: !!user.is_anonymous };
   },
 
   async loadMe(id) {
     id = id || await uid();
-    const pub = check(await sb.from('profiles').select('*').eq('id', id).maybeSingle());
+    const [pubRes, privRes] = await Promise.all([
+      sb.from('profiles').select('*').eq('id', id).maybeSingle(),
+      sb.from('profile_private').select('*').eq('id', id).maybeSingle()
+    ]);
+    const pub = check(pubRes);
     if (!pub) return null;
-    const priv = check(await sb.from('profile_private').select('*').eq('id', id).maybeSingle());
-    return { ...(priv || {}), ...pub };
+    return { ...(check(privRes) || {}), ...pub };
+  },
+
+  // Neues Konto mit Handynummer + PIN. Bestehende Geräte-Anmeldung wird mit übernommen.
+  async register({ first_name, phone, pin, avatar_color }) {
+    const token = await transferToken();
+    const { data: cur } = await sb.auth.getSession();
+    if (cur.session?.user?.is_anonymous && !token && await this.loadMe(cur.session.user.id)) {
+      throw new Error('Die Umstellung ist noch nicht ganz fertig. Bitte in ein paar Minuten nochmal versuchen.');
+    }
+    const res = await sb.auth.signUp({ email: phoneEmail(phone), password: pinPassword(pin) });
+    if (res.error) {
+      if (/already|registered|exists/i.test(res.error.message)) throw new Error('Für diese Nummer gibt es schon ein Konto. Tippe auf „Ich habe schon ein Konto“.');
+      throw new Error(res.error.message);
+    }
+    if (!res.data.session) throw new Error('Anmeldung noch nicht freigeschaltet (in Supabase „Confirm email“ ausschalten).');
+    if (token) check(await sb.rpc('claim_transfer', { tok: token }));
+    const existing = await this.loadMe();
+    return this.updateProfile(existing ? { first_name, phone } : { first_name, phone, avatar_color });
+  },
+
+  async login({ phone, pin }) {
+    const token = await transferToken();
+    const res = await sb.auth.signInWithPassword({ email: phoneEmail(phone), password: pinPassword(pin) });
+    if (res.error) throw new Error('Handynummer oder PIN stimmt nicht.');
+    if (token) { try { check(await sb.rpc('claim_transfer', { tok: token })); } catch { /* egal */ } }
+    return this.loadMe();
+  },
+
+  async logout() {
+    await sb.auth.signOut();
+  },
+
+  async adminResetPin(memberId, pin) {
+    check(await sb.rpc('admin_reset_pin', { member: memberId, new_pin: pin }));
   },
 
   async saveProfile(p) {

@@ -11,7 +11,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.js',
-      injectManifest: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'] },
+      injectManifest: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,woff2}'] },
       includeAssets: ['apple-touch-icon.png', 'logo.png'],
       manifest: {
         name: 'Joinly – offen für …',

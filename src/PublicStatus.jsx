@@ -5,6 +5,7 @@ import { statusTexts } from './Feed.jsx';
 import { Nav, Pin } from './Icons.jsx';
 import { dayLabel, hhmm } from './time.js';
 import { googleMapsUrl, appleMapsUrl, isApple } from './services.js';
+import { PinField } from './Onboarding.jsx';
 
 const COLORS = ['#3B4A5A', '#5A3B4A', '#3B5A45', '#5A513B', '#463B5A', '#5A433B', '#3B5557'];
 
@@ -19,17 +20,21 @@ export default function PublicStatus({ s, me, onMe, onDone, onReload }) {
   const over = new Date(s.ends_at) < new Date();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [pin, setPin] = useState('');
+  const [hasAccount, setHasAccount] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const needsProfile = !me;
-  const ok = !needsProfile || (name.trim() && phone.replace(/\D/g, '').length >= 6);
+  const ok = !needsProfile || ((hasAccount || name.trim()) && phone.replace(/\D/g, '').length >= 6 && /^\d{6}$/.test(pin));
 
   const join = async () => {
     if (!ok) return;
     setBusy(true); setErr('');
     try {
       if (needsProfile) {
-        const m = await api.saveProfile({ first_name: name.trim(), phone: phone.trim(), avatar_color: COLORS[Math.floor(Math.random() * COLORS.length)] });
+        const m = hasAccount
+          ? await api.login({ phone: phone.trim(), pin })
+          : await api.register({ first_name: name.trim(), phone: phone.trim(), pin, avatar_color: COLORS[Math.floor(Math.random() * COLORS.length)] });
         onMe(m);
       }
       await api.joinStatusGuest(s.id);
@@ -79,9 +84,14 @@ export default function PublicStatus({ s, me, onMe, onDone, onReload }) {
 
       {!over && !isHost && !joined && needsProfile && (
         <div className="stack">
-          <span className="soft">Trag kurz deinen Namen und deine Nummer ein, dann bist du dabei.</span>
-          <label className="field">Vorname<input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" maxLength={40} /></label>
+          <span className="soft">{hasAccount ? 'Melde dich an, dann bist du dabei.' : 'Trag kurz Name, Nummer und eine 6-stellige PIN ein, dann bist du dabei.'}</span>
+          <div className="seg" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }} role="tablist">
+            <button type="button" role="tab" aria-selected={!hasAccount} className={!hasAccount ? 'on' : ''} onClick={() => setHasAccount(false)}>Neu hier</button>
+            <button type="button" role="tab" aria-selected={hasAccount} className={hasAccount ? 'on' : ''} onClick={() => setHasAccount(true)}>Habe ein Konto</button>
+          </div>
+          {!hasAccount && <label className="field">Vorname<input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" maxLength={40} /></label>}
           <label className="field">Handynummer<input className="input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" placeholder="+49 …" /></label>
+          <PinField value={pin} onChange={setPin} label={hasAccount ? 'PIN' : 'PIN wählen (6 Ziffern)'} />
         </div>
       )}
 

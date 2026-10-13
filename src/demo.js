@@ -72,7 +72,11 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 
 export const demoApi = {
   demo: true,
-  async init() { const d = load(); return { userId: ME, me: d.me ? { id: ME, ...d.me } : null }; },
+  async init() { const d = load(); return { userId: d.me ? ME : null, me: d.me ? { id: ME, ...d.me } : null, anonymous: false }; },
+  async register({ first_name, phone, avatar_color }) { return this.saveProfile({ first_name, phone, avatar_color }); },
+  async login() { const d = load(); if (!d.me) d.me = { first_name: 'Demo', phone: '+49 170 0000000', avatar_color: '#3B4A5A' }; changed(); return { id: ME, ...d.me }; },
+  async logout() { load().me = null; changed(); },
+  async adminResetPin() {},
   async saveProfile(p) { load().me = { avatar_color: '#2E2E2E', interests: null, push_activities: [], ...p }; changed(); return { id: ME, ...db.me }; },
   async updateProfile(patch) { Object.assign(load().me, patch); changed(); return { id: ME, ...db.me }; },
   async listMyGroups() {

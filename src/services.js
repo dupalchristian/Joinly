@@ -1,12 +1,17 @@
 // Kostenlose Dienste ohne Schlüssel:
 // Wetter: Open-Meteo · Ortssuche: Photon (OpenStreetMap) · Fahrzeit: OSRM
 
+// Zwischenspeicher im Speicher und auf dem Handy, damit Wetter und Fahrzeit beim Öffnen sofort da sind
 const cache = new Map();
 const cached = async (key, ttlMs, fn) => {
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.t < ttlMs) return hit.v;
-  const v = await fn();
-  cache.set(key, { t: Date.now(), v });
+  let hit = cache.get(key);
+  if (!hit) { try { hit = JSON.parse(localStorage.getItem('joinly-svc:' + key)); } catch { hit = null; } }
+  if (hit && Date.now() - hit.t < ttlMs) { cache.set(key, hit); return hit.v; }
+  if (!cache.has('p:' + key)) cache.set('p:' + key, fn().finally(() => cache.delete('p:' + key)));
+  const v = await cache.get('p:' + key);
+  const entry = { t: Date.now(), v };
+  cache.set(key, entry);
+  try { localStorage.setItem('joinly-svc:' + key, JSON.stringify(entry)); } catch { /* egal */ }
   return v;
 };
 

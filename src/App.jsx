@@ -12,6 +12,7 @@ import Quick from './Quick.jsx';
 import PublicStatus from './PublicStatus.jsx';
 import { kindOf } from './Feed.jsx';
 import { refreshPush } from './push.js';
+import { readCache, writeCache, clearCache } from './cache.js';
 import { hhmm, dayName } from './time.js';
 
 const appBase = () => location.origin + location.pathname;
@@ -40,12 +41,14 @@ function takeParams() {
 }
 
 export default function App() {
-  const [boot, setBoot] = useState({ loading: true, error: '' });
-  const [me, setMe] = useState(null);
+  const cached = readCache('session');
+  const [boot, setBoot] = useState({ loading: !cached?.me, error: '' });
+  const [me, setMe] = useState(cached?.me || null);
+  const [legacyMe, setLegacyMe] = useState(null);   // altes Konto ohne PIN
   const [invite, setInvite] = useState(null);       // { code, group_name }
-  const [groups, setGroups] = useState([]);
+  const [groups, setGroups] = useState(cached?.groups || []);
   const [groupId, setGroupIdRaw] = useState(readGroup());
-  const [statuses, setStatuses] = useState([]);
+  const [statuses, setStatuses] = useState(() => readCache('st:' + readGroup()) || []);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [screen, setScreen] = useState({ name: 'feed' });
   const [toast, setToast] = useState('');
@@ -88,15 +91,23 @@ export default function App() {
     (async () => {
       try {
         const { code, status: statusLink } = takeParams();
-        const { me } = await api.init();
+        const [{ me, anonymous }, info] = await Promise.all([
+          api.init(),
+          code ? api.inviteInfo(code).catch(() => null) : Promise.resolve(null)
+        ]);
         let inv = null;
         if (code) {
-          const info = await api.inviteInfo(code);
           if (info) inv = { code, ...info };
           else setToast('Dieser Einladungslink ist ungültig.');
         }
         setInvite(inv);
+        if (me && anonymous) {            // altes Konto: einmal PIN festlegen
+          setLegacyMe(me); setMe(null); clearCache();
+          setBoot({ loading: false, error: '' });
+          return;
+        }
         setMe(me);
+        if (!me) clearCache();
         if (me) {
           if (inv) { await api.requestJoin(inv.code); setToast(`Anfrage für „${inv.group_name}“ gesendet`); setInvite(null); }
           const gs = await reloadGroups();
@@ -119,12 +130,15 @@ export default function App() {
     const to = addDays(startOfDay(new Date()), 8);
     const rows = await api.listStatuses(groupId, from.toISOString(), to.toISOString());
     setStatuses(rows);
+    writeCache('st:' + groupId, rows);
   }, [groupId]);
 
   // Feed laden + Live-Updates
   useEffect(() => {
     if (!me || !groupId) return;
     let live = true;
+    const c = readCache('st:' + groupId);
+    if (c) setStatuses(c);
     setLoadingFeed(true);
     loadStatuses().catch(e => setToast(e.message)).finally(() => live && setLoadingFeed(false));
     let t;
@@ -132,16 +146,22 @@ export default function App() {
       clearTimeout(t);
       t = setTimeout(() => { loadStatuses().catch(() => {}); reloadGroups().catch(() => {}); setTick(x => x + 1); }, 250);
     });
-    const onFocus = () => { loadStatuses().catch(() => {}); reloadGroups().catch(() => {}); };
+    const onFocus = () => { if (document.visibilityState === 'visible') { loadStatuses().catch(() => {}); reloadGroups().catch(() => {}); } };
     window.addEventListener('focus', onFocus);
-    return () => { live = false; unsub(); clearTimeout(t); window.removeEventListener('focus', onFocus); };
+    document.addEventListener('visibilitychange', onFocus);
+    return () => { live = false; unsub(); clearTimeout(t); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus); };
   }, [me?.id, groupId]);
 
   // Mitglieder der Gruppe (für die Status-Kreise)
   useEffect(() => {
     if (!me || !groupId) { setMembers([]); return; }
-    api.listMembers(groupId).then(setMembers).catch(() => {});
+    const c = readCache('mem:' + groupId);
+    if (c) setMembers(c);
+    api.listMembers(groupId).then(m => { setMembers(m); writeCache('mem:' + groupId, m); }).catch(() => {});
   }, [me?.id, groupId, tick]);
+
+  // Zuletzt bekannte Daten merken, damit die App beim nächsten Öffnen sofort etwas zeigt
+  useEffect(() => { if (me) writeCache('session', { me, groups }); }, [me, groups]);
 
   // Ausstehende Freigabe regelmäßig prüfen
   useEffect(() => {
@@ -215,7 +235,8 @@ export default function App() {
 
   if (!me) return (
     <div className="app">
-      <Onboarding invite={invite} onDone={async (m) => {
+      <Onboarding invite={invite} legacyMe={legacyMe} onDone={async (m) => {
+        setLegacyMe(null);
         setMe(m);
         if (invite) { await api.requestJoin(invite.code); setInvite(null); setToast(`Anfrage für „${invite.group_name}“ gesendet`); }
         const gs = await reloadGroups();
@@ -264,7 +285,8 @@ export default function App() {
           onBack={() => go('feed')} reloadGroups={reloadGroups} toast={setToast} />
       )}
       {screen.name === 'profile' && (
-        <Profile me={me} group={group} onBack={() => go('feed')} onSaved={setMe} toast={setToast} />
+        <Profile me={me} group={group} onBack={() => go('feed')} onSaved={setMe} toast={setToast}
+          onLogout={async () => { await api.logout(); clearCache(); location.reload(); }} />
       )}
       <Toast text={toast} onDone={() => setToast('')} />
     </div>

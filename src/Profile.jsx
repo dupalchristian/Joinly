@@ -6,7 +6,7 @@ import PlaceSearch from './PlaceSearch.jsx';
 import { enablePush, pushState } from './push.js';
 import AvatarEditor from './AvatarEditor.jsx';
 
-export default function Profile({ me, group, onBack, onSaved, toast }) {
+export default function Profile({ me, group, onBack, onSaved, toast, onLogout }) {
   const [name, setName] = useState(me.first_name || '');
   const [phone, setPhone] = useState(me.phone || '');
   const [av, setAv] = useState({ avatar_url: me.avatar_url || null, avatar_emoji: me.avatar_emoji || null, avatar_color: me.avatar_color || '#2E2E2E' });
@@ -90,6 +90,8 @@ export default function Profile({ me, group, onBack, onSaved, toast }) {
         </div>
         <button className="chip" style={{ alignSelf: 'flex-start' }} onClick={() => setShowAll(!showAll)}>{showAll ? 'Weniger Aktivitäten' : 'Alle Aktivitäten zeigen'}</button>
       </section>
+
+      <button className="btn ghost block" onClick={() => { if (confirm('Abmelden? Du kannst dich jederzeit mit Handynummer und PIN wieder anmelden.')) onLogout(); }}>Abmelden</button>
 
       {api.demo && (
         <button className="btn ghost block" onClick={() => { api.reset(); location.reload(); }}>Demo zurücksetzen</button>
