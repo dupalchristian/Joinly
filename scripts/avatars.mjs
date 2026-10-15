@@ -7,24 +7,26 @@ import path from 'path';
 const OUT = 'public/avatars';
 export const SHEETS = [
   {
-    url: 'https://cms-toolkit-artifacts.artlist.io/content/-t-e-x-t_-t-o_-i-m-a-g-e-v1/media__8/-t-e-x-t_-t-o_-i-m-a-g-e-6424c924-b994-4618-98da-e46acf6338e1.png?Expires=2107443748&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=ZmNqntHOlxpICz9Cs7fgnZzij3Wzb2Bv6PoqgpK153XHlwhb5lPR44OhI5HcYPSCAGzuv3PLHe6zjS24BEY972uL1Hi2n4C~meFRSiHUhmMcHoFwLw9H03jQFLsSVsH69MGDzbkCvgMi~8lSagy8TLrzdr1xnZJgkxi0a9vsgOB5lciipeFh~owIxQkFk7bNtuChnvipxJzgIoITmik9UyZwmt-QUCg1szkh2E3kzT6Z3BFcMTqWY7WxB4GBdWeIbp2mp2g1avoCGDB3IqbLGbONAxp96yhXQ0y3fg9wlX5w2t0NRcWdgEec0hCEjyYp-D58mUk3l4d3WZYpXWi6HQ__',
-    names: ['rapper', 'mma', 'fussballer', 'bodybuilder', 'hippie', 'zocker', 'dj', 'koch', 'biker', 'wikinger', 'ninja', 'cowboy', 'pirat', 'boxer', 'surfer', 'astronaut']
+    url: 'https://cms-toolkit-artifacts.artlist.io/content/-t-e-x-t_-t-o_-i-m-a-g-e-v1/media__6/-t-e-x-t_-t-o_-i-m-a-g-e-a7bbd92c-438c-4f6e-ba9f-2628de64a562.png?Expires=2107444852&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=INiL2lJHHy6GMkCYOfpoc-892Hp5mdn3ABrfy9l9I55og1AYuImO3Nai~VquUgqPANIeTyvSiV26MOIeM15bTjcosKauRIqf6~-qyp5NbfS-gW6eVnvwwvdA8x8GO15E-Lx-lTcf2ZpDCBpSUzUlHpBeGeCmcYPSOzEqHocG~ej1i3wr2bQYxtaBltUk18taXRKWm8f-hvCWvNmcu4I17Q57DcrIbCVCYak4QS7O-3DyLP5y5P9qRVRSZa~OvcrnQRMXyKNRYPs34MInedEtzyIjUSnMMEYkGjvaL77i7LJxrdWjIuqV7ydpZSjG0PgYFVEiBANu5u0EdHGLGv4q1A__',
+    cols: 4, rows: 4,
+    names: ['rapper', 'dj', 'skater', 'sneakerhead', 'hippie', 'influencer', 'raver', 'tattoo', 'scooter', 'mma', 'bodybuilder', 'fussballer', 'snowboarder', 'eisbader', 'jogger', 'zocker']
   },
   {
-    url: 'https://cms-toolkit-artifacts.artlist.io/content/-t-e-x-t_-t-o_-i-m-a-g-e-v1/media__7/-t-e-x-t_-t-o_-i-m-a-g-e-6db7cc91-8631-4302-89f7-0b3d88cf7ede.png?Expires=2107443734&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=taWF5HcJKxw4VOp~AYoAZNS~s8mZvtSVm9mGdsEu6J9q53ND2xEBU~K1oQTC1Kgo40JhEK8r-ThivgfcPszd~M3-bDkouIxbhVeYXyCz15KGHhQHyJj~fGmyURHuGdocgvOtegXOlyv5OzKGeB4M0Ap6aAquULBdMPAvmSwjjm70hucR1GibYE6WGoid08kMBXSYIIpfEbbDwP2zCf~3za3DNYrXuIe8~ye~-31OxogmjdC0qPN5FCuTz7y6g2Dz2wVM26AcWzDb33rLiWMJ2fQYq~MiJrFnP59zj-NFEiR7nhQKg0w-usEUQDOitDxgLRiqpHLYI0~eypylGXAR3g__',
-    names: ['chemiker', 'bauarbeiter', 'muskelprotz', 'hipster', 'yogi', 'taucher', 'eishockey', 'golfer', 'rockstar', 'zauberer', 'detektiv', 'pilot', 'fan', 'partygirl', 'angler', 'opa']
+    url: 'https://cms-toolkit-artifacts.artlist.io/content/-t-e-x-t_-t-o_-i-m-a-g-e-v1/media__9/-t-e-x-t_-t-o_-i-m-a-g-e-f2f09faf-3258-4bdc-8d0f-a06b2fda411e.png?Expires=2107444852&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=wBBI1te~dubAWtk0NK1C~~EHF9res2tGfz~hHoXs4dk63tIbXPpz5xkAHV~hs3VTBmg8E~v0HuK93HfhCXB-pkk~4am8Y8AbL0A-oWShUrlACrRpb0pI8gcB4P-J9Kgep8-UHKDcSY6jnpTGUSnEAqsG-c2hfbQnIQU-TbrErH8Wr8qNUowYcE8~4Z7TBfsCm0vQAMPPcDXomIDbcoahCrYxHgk5i5aSa1vwVbM21mNlSEzcXsINJY6mGKiL1LTuD2PxpszjIr7tP9COxT-G2o2PYI4YmTgWH5Bn-VEuYLBPQkzItWP9Ykwjf1aJ7a7cZhRPbShgWdSqYd6dDDSEnw__',
+    cols: 4, rows: 3,
+    names: ['esportler', 'hacker', 'alien', 'zauberer', 'zombie', 'grillmeister', 'bierfan', 'schlafmuetze', 'gorilla', 'fee', 'gaertner', 'faultier']
   }
 ];
 
 // Schneidet aus einem Bild-Buffer alle 16 Figuren aus (Inhalt pro Zelle automatisch gefunden)
-export async function cutSheet(buf, names, outDir) {
+export async function cutSheet(buf, names, outDir, cols = 4, rows = 4) {
   const img = sharp(buf).removeAlpha();
   const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });
   const { width: W, height: H, channels: C } = info;
-  const cw = W / 4, ch = H / 4;
+  const cw = W / cols, ch = H / rows;
   const written = [];
-  for (let i = 0; i < 16; i++) {
-    const cx = (i % 4) * cw, cy = Math.floor(i / 4) * ch;
+  for (let i = 0; i < cols * rows && i < names.length; i++) {
+    const cx = (i % cols) * cw, cy = Math.floor(i / cols) * ch;
     let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
     for (let y = Math.floor(cy); y < Math.floor(cy + ch); y += 2) {
       for (let x = Math.floor(cx); x < Math.floor(cx + cw); x += 2) {
@@ -52,7 +54,7 @@ if (process.argv[1] && process.argv[1].endsWith('avatars.mjs')) {
       const r = await fetch(sh.url);
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const buf = Buffer.from(await r.arrayBuffer());
-      all.push(...await cutSheet(buf, sh.names, OUT));
+      all.push(...await cutSheet(buf, sh.names, OUT, sh.cols, sh.rows));
     } catch (e) {
       console.warn('Avatar-Bogen nicht geladen:', e.message);
     }
