@@ -11,6 +11,8 @@ const APP_URL = 'https://dupalchristian.github.io/Joinly/';
 
 webpush.setVapidDetails(APP_URL, VAPID_PUBLIC, VAPID_PRIVATE);
 
+const emo = (i?: string) => (i && i.startsWith('img:') ? ({ joint: '🌿', karte: '💳' } as Record<string, string>)[i.slice(4)] ?? '' : (i ?? ''));
+
 const time = (iso: string) =>
   new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
 
@@ -56,7 +58,7 @@ Deno.serve(async (req) => {
       title = `${name}: Kommt vorbei! 🚪`;
       body = `${s.place_name ?? ''} bis ${time(s.ends_at)} Uhr${s.note ? ' – ' + s.note : ''}`.trim();
     } else {
-      title = `${name} ist offen für ${s.activity} ${s.icon ?? ''}`.trim();
+      title = `${name} ist offen für ${s.activity} ${emo(s.icon)}`.trim();
       body = `${dayWord(s.starts_at)}, ${time(s.starts_at)} – ${time(s.ends_at)} Uhr${where}`;
     }
     if (group?.name) body += ` (${group.name})`;

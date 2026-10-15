@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from './api.js';
 import { DEFAULT_ACTIVITIES } from './activities.js';
 import IconPicker from './IconPicker.jsx';
-import { homeOf } from './common.jsx';
+import { homeOf, Emo } from './common.jsx';
 import { Bell, Close, WeatherIcon } from './Icons.jsx';
 import PlaceSearch from './PlaceSearch.jsx';
 import { weatherFor, searchPlaces, FALLBACK_POS } from './services.js';
@@ -99,10 +99,10 @@ export default function Create({ me, group, onClose, onPosted, existing }) {
         <div className="chips wrap">
           {favorites.map(a => (
             <button key={a.name} className={'chip accent' + (!custom && act.name === a.name ? ' on' : '')}
-              onClick={() => { setAct(a); setCustom(false); }}>{a.icon} {a.name}</button>
+              onClick={() => { setAct(a); setCustom(false); }}><Emo i={a.icon} /> {a.name}</button>
           ))}
           {!favorites.some(f => f.name === act.name) && !custom && (
-            <button className="chip accent on">{act.icon} {act.name}</button>
+            <button className="chip accent on"><Emo i={act.icon} /> {act.name}</button>
           )}
           <button className="chip" onClick={() => { setShowAll(!showAll); setCustom(false); }}>{showAll ? 'Weniger' : 'Mehr …'}</button>
           <button className={'chip accent' + (custom ? ' on' : '')} onClick={() => { setCustom(true); setShowAll(false); }}>+ Eigene</button>
@@ -114,7 +114,7 @@ export default function Create({ me, group, onClose, onPosted, existing }) {
             <div className="chips wrap" style={{ maxHeight: 220, overflowY: 'auto' }}>
               {all.map(a => (
                 <button key={a.name} className={'chip accent' + (act.name === a.name ? ' on' : '')}
-                  onClick={() => { setAct(a); setShowAll(false); setFilter(''); }}>{a.icon} {a.name}</button>
+                  onClick={() => { setAct(a); setShowAll(false); setFilter(''); }}><Emo i={a.icon} /> {a.name}</button>
               ))}
             </div>
           </div>

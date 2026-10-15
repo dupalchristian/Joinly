@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Avatar } from './common.jsx';
+import { Emo, Avatar } from './common.jsx';
 import { Back } from './Icons.jsx';
 import { goingPeople } from './status.js';
 import { hhmm } from './time.js';
@@ -43,7 +43,7 @@ export default function History({ me, group, items, badges, reload, tick, onBack
               <button key={s.id} className="card" style={{ all: 'unset', cursor: 'pointer' }} onClick={() => onOpen(s.id)}>
                 <div className="card" style={{ gap: 12 }}>
                   <div className="row" style={{ alignItems: 'flex-start' }}>
-                    <div className="icon-tile" aria-hidden="true">{s.icon}</div>
+                    <div className="icon-tile" aria-hidden="true"><Emo i={s.icon} /></div>
                     <div className="col grow" style={{ gap: 3 }}>
                       <span className="time">{WD[d.getDay()]}, {d.getDate()}. {MONTHS[d.getMonth()]} · {hhmm(s.starts_at)} Uhr</span>
                       <span className="title">{s.kind === 'open' ? `Kommt vorbei${s.place_name ? ': ' + s.place_name : ''}` : s.kind === 'free' ? 'Gerade frei' : s.activity}</span>

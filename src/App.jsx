@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api.js';
 import { addDays, startOfDay } from './time.js';
-import { Toast } from './common.jsx';
+import { Toast, emoText } from './common.jsx';
 import Onboarding from './Onboarding.jsx';
 import Feed from './Feed.jsx';
 import Detail from './Detail.jsx';
@@ -27,7 +27,7 @@ function shareText(s, me) {
   const note = s.note ? ` – ${s.note}` : '';
   if (k === 'free') return `${who} gerade frei bis ${hhmm(s.ends_at)} Uhr 👋${note}. Wer hat Lust?`;
   if (k === 'open') return `Kommt vorbei! ${who} bis ${hhmm(s.ends_at)} Uhr${place ? ' hier:' + place.slice(2) : ''}${note}.`;
-  return `${who} offen für ${s.activity} ${s.icon} – ${dayName(new Date(s.starts_at))}, ${hhmm(s.starts_at)}–${hhmm(s.ends_at)} Uhr${place}${note}. Wer kommt mit?`;
+  return `${who} offen für ${s.activity} ${emoText(s.icon)} – ${dayName(new Date(s.starts_at))}, ${hhmm(s.starts_at)}–${hhmm(s.ends_at)} Uhr${place}${note}. Wer kommt mit?`;
 }
 
 const GROUP_KEY = 'joinly-group';

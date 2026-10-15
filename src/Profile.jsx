@@ -1,3 +1,4 @@
+import { Emo } from './common.jsx';
 import { useEffect, useState } from 'react';
 import { api } from './api.js';
 import { DEFAULT_ACTIVITIES } from './activities.js';
@@ -85,7 +86,7 @@ export default function Profile({ me, group, counts = [], onBack, onSaved, toast
             <span className="small muted">Nur diese Aktivitäten erscheinen in deinem Feed:</span>
             <div className="chips wrap">
               {[...acts, ...extra.map(n => ({ name: n, icon: '' }))].map(a => (
-                <button key={a.name} className={'chip accent' + (interests.includes(a.name) ? ' on' : '')} onClick={() => toggle(interests, setInterests, a.name)}>{a.icon} {a.name}</button>
+                <button key={a.name} className={'chip accent' + (interests.includes(a.name) ? ' on' : '')} onClick={() => toggle(interests, setInterests, a.name)}><Emo i={a.icon} /> {a.name}</button>
               ))}
             </div>
           </>
@@ -106,7 +107,7 @@ export default function Profile({ me, group, counts = [], onBack, onSaved, toast
         <span className="small muted">Wenn jemand bei deinem Status zusagt, bekommst du immer eine Nachricht. Außerdem bei diesen Aktivitäten:</span>
         <div className="chips wrap">
           {acts.map(a => (
-            <button key={a.name} className={'chip accent' + (push.includes(a.name) ? ' on' : '')} onClick={() => toggle(push, setPush, a.name)}>{a.icon} {a.name}</button>
+            <button key={a.name} className={'chip accent' + (push.includes(a.name) ? ' on' : '')} onClick={() => toggle(push, setPush, a.name)}><Emo i={a.icon} /> {a.name}</button>
           ))}
         </div>
         <button className="chip" style={{ alignSelf: 'flex-start' }} onClick={() => setShowAll(!showAll)}>{showAll ? 'Weniger Aktivitäten' : 'Alle Aktivitäten zeigen'}</button>

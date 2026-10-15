@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from './api.js';
-import { Avatar, useExtras, WeatherBadge, placeText } from './common.jsx';
+import { Avatar, useExtras, WeatherBadge, placeText, Emo } from './common.jsx';
 import { statusTexts, goingPeople, myAnswer } from './status.js';
 import { Nav, Pin } from './Icons.jsx';
 import { dayLabel, hhmm } from './time.js';
@@ -55,7 +55,7 @@ export default function PublicStatus({ s, me, onMe, onDone, onReload }) {
 
       <article className="card">
         <div className="row" style={{ alignItems: 'flex-start' }}>
-          <div className="icon-tile" aria-hidden="true">{s.icon}</div>
+          <div className="icon-tile" aria-hidden="true"><Emo i={s.icon} /></div>
           <div className="col grow" style={{ gap: 3 }}>
             <span className="time" style={t.live ? { color: 'var(--accent)' } : undefined}>
               {t.live && s.kind !== 'plan' ? t.time : `${dayLabel(new Date(s.starts_at))} · ${hhmm(s.starts_at)} – ${hhmm(s.ends_at)} Uhr`}

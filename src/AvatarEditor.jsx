@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
-import { Avatar } from './common.jsx';
+import { Avatar, Emo } from './common.jsx';
 
 const EMOJIS = ['😎', '🤠', '🥸', '🤓', '🤪', '😈', '🤡', '👻', '💀', '👽', '🤖', '🎃', '🥷', '🧛', '🧟', '🧙', '🦸', '🦹', '🧑‍🚀', '🧑‍🍳', '🧑‍🔬', '🧑‍🎤', '🧑‍🚒', '👷', '🕵️', '💂', '🤴', '👸', '🧔', '👴', '🧢', '🎩',
   '😺', '🦊', '🐻', '🐼', '🐯', '🦁', '🐸', '🐵', '🙈', '🦉', '🐙', '🦄', '🐺', '🐶', '🐧', '🦈', '🐊', '🦖', '🐗', '🐐', '🦥', '🦦',
-  '🌻', '🔥', '⚡', '🌊', '🏔️', '🍀', '☮️', '✌️', '🤘', '💪', '🍺', '🍕', '🌿', '🚬', '💸', '💎', '👑', '🎱', '⚽', '🥊', '🏋️', '🎮', '🎸', '🏍️'];
+  'img:joint', 'img:karte', '🌻', '🔥', '⚡', '🌊', '🏔️', '🍀', '☮️', '✌️', '🤘', '💪', '🍺', '🍕', '🌿', '🚬', '💸', '💎', '👑', '🎱', '⚽', '🥊', '🏋️', '🎮', '🎸', '🏍️'];
 const COLORS = ['#3B4A5A', '#5A3B4A', '#3B5A45', '#5A513B', '#463B5A', '#5A433B', '#3B5557', '#2E2E2E', '#6B5A2E'];
 
 // Foto auf 400×400 zuschneiden und als JPEG verkleinern
@@ -74,7 +74,7 @@ export default function AvatarEditor({ me, value, onChange, toast }) {
             {EMOJIS.map(e => (
               <button key={e} role="radio" aria-checked={value.avatar_emoji === e} className={value.avatar_emoji === e ? 'on' : ''}
                 style={{ background: value.avatar_color || '#2E2E2E' }}
-                onClick={() => onChange({ ...value, avatar_url: null, avatar_emoji: e })}>{e}</button>
+                onClick={() => onChange({ ...value, avatar_url: null, avatar_emoji: e })}><Emo i={e} /></button>
             ))}
           </div>
           <span className="small muted">Hintergrund</span>

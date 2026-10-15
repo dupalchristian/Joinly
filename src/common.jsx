@@ -2,6 +2,15 @@ import { useEffect, useState } from 'react';
 import { weatherFor, driveInfo, FALLBACK_POS } from './services.js';
 import { WeatherIcon } from './Icons.jsx';
 
+// Symbol: normales Emoji oder eigenes Bild („img:joint“ → icons/joint.webp)
+export function Emo({ i }) {
+  if (typeof i === 'string' && i.startsWith('img:')) {
+    return <img src={`icons/${i.slice(4)}.webp`} alt="" style={{ width: '1.1em', height: '1.1em', objectFit: 'contain', verticalAlign: '-0.18em', display: 'inline-block' }} />;
+  }
+  return <>{i}</>;
+}
+export const emoText = (i) => (typeof i === 'string' && i.startsWith('img:') ? ({ joint: '🌿', karte: '💳' }[i.slice(4)] || '') : (i || ''));
+
 // Profilbild > eigener Avatar (Symbol auf Farbe) > Anfangsbuchstabe
 export function Avatar(props) {
   const { badge, size, lg } = props;
@@ -11,7 +20,7 @@ export function Avatar(props) {
   return (
     <span className="avatar-wrap" title={`${badge.n}× ${badge.activity}`}>
       <AvatarCore {...props} />
-      <span className={'badge-mini' + (badge.level > 1 ? ' gold' : '')} style={{ width: bs, height: bs, fontSize: Math.round(bs * 0.6) }} aria-label={`Abzeichen: ${badge.n}× ${badge.activity}`}>{badge.icon}</span>
+      <span className={'badge-mini' + (badge.level > 1 ? ' gold' : '')} style={{ width: bs, height: bs, fontSize: Math.round(bs * 0.6) }} aria-label={`Abzeichen: ${badge.n}× ${badge.activity}`}><Emo i={badge.icon} /></span>
     </span>
   );
 }
@@ -27,7 +36,7 @@ function AvatarCore({ p, me, lg, size, ring }) {
     </div>;
   }
   const bg = p?.avatar_emoji ? (p.avatar_color || '#2E2E2E') : isMe ? undefined : (p?.avatar_color || '#2E2E2E');
-  const content = p?.avatar_emoji || (isMe ? 'Du' : (p?.first_name || '?').charAt(0).toUpperCase());
+  const content = p?.avatar_emoji ? <Emo i={p.avatar_emoji} /> : (isMe ? 'Du' : (p?.first_name || '?').charAt(0).toUpperCase());
   return (
     <div className={'avatar' + (isMe && !p?.avatar_emoji ? ' me' : '') + (lg || size ? ' lg' : '')}
       style={{ ...style, ...(bg ? { background: bg } : {}) }} title={p?.first_name}>{content}</div>

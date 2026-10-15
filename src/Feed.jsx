@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Avatar, useExtras, WeatherBadge, placeText } from './common.jsx';
+import { Emo, Avatar, useExtras, WeatherBadge, placeText } from './common.jsx';
 import { buildStories, StoryRow, StoryViewer } from './Stories.jsx';
 import { kindOf, statusTexts, goingPeople } from './status.js';
 import RsvpBar, { answerSummary } from './Rsvp.jsx';
@@ -22,7 +22,7 @@ function StatusCard({ s, me, badges, onOpen, onRespond }) {
   return (
     <article className="card">
       <button className="card-main" onClick={onOpen} aria-label={`${s.activity} – Details öffnen`}>
-        <div className="icon-tile" aria-hidden="true">{s.icon}</div>
+        <div className="icon-tile" aria-hidden="true"><Emo i={s.icon} /></div>
         <div className="col grow" style={{ gap: 3 }}>
           <span className="time" style={t.live ? { color: 'var(--accent)' } : undefined}>{t.time}</span>
           <span className="title">{t.title}</span>

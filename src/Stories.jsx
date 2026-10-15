@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Avatar, useExtras, placeText } from './common.jsx';
+import { Avatar, useExtras, placeText, Emo } from './common.jsx';
 import { statusTexts, goingPeople } from './status.js';
 import RsvpBar, { answerSummary } from './Rsvp.jsx';
 import { Close, Pin, WeatherIcon, Plus } from './Icons.jsx';
@@ -41,7 +41,7 @@ export function StoryRow({ stories, me, badges = {}, onOpen, onCreate }) {
               aria-label={has ? `${label}: ${r.statuses.length} Status ansehen` : isMe ? 'Status erstellen' : `${label} hat gerade nichts geplant`}
               style={!has && !isMe ? { opacity: 0.45, cursor: 'default' } : undefined}>
               <Avatar p={r.person} me={me} size={62} ring={has ? (r.live ? 'live' : 'soon') : null} badge={badges[r.person.id]} />
-              {has && <span className="story-badge" aria-hidden="true">{r.statuses[0].icon}</span>}
+              {has && <span className="story-badge" aria-hidden="true"><Emo i={r.statuses[0].icon} /></span>}
               {isMe && !has && <span className="story-badge plus" aria-hidden="true"><Plus size={14} /></span>}
             </button>
             <span className="story-name">{label}</span>
@@ -57,7 +57,7 @@ function StorySlide({ s, me }) {
   const t = statusTexts(s, me);
   return (
     <div className="col" style={{ gap: 14, alignItems: 'center', textAlign: 'center' }}>
-      <div style={{ fontSize: 88, lineHeight: 1 }} aria-hidden="true">{s.icon}</div>
+      <div style={{ fontSize: 88, lineHeight: 1 }} aria-hidden="true"><Emo i={s.icon} /></div>
       <h2 className="h1" style={{ fontSize: 32 }}>{t.title}</h2>
       <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
         {t.live && (s.kind || 'plan') !== 'plan' ? t.time : `${dayLabel(new Date(s.starts_at))} · ${hhmm(s.starts_at)} – ${hhmm(s.ends_at)} Uhr`}

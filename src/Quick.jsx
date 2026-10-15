@@ -3,7 +3,7 @@ import { api } from './api.js';
 import { Close } from './Icons.jsx';
 import PlaceSearch from './PlaceSearch.jsx';
 import IconPicker from './IconPicker.jsx';
-import { homeOf } from './common.jsx';
+import { homeOf, Emo } from './common.jsx';
 import { hhmm } from './time.js';
 
 const PLACES_KEY = 'joinly-open-places';
@@ -88,7 +88,7 @@ export default function Quick({ kind, me, group, onClose, onPosted }) {
             <div className="chips wrap">
               {saved.map((p, i) => (
                 <button key={p.place_name} className={'chip accent' + (mode === 'saved' && savedIdx === i ? ' on' : '')}
-                  onClick={() => { setMode('saved'); setSavedIdx(i); setIcon(p.icon || '🔧'); }}>{p.icon} {p.place_name}</button>
+                  onClick={() => { setMode('saved'); setSavedIdx(i); setIcon(p.icon || '🔧'); }}><Emo i={p.icon} /> {p.place_name}</button>
               ))}
               <button className={'chip' + (mode !== 'saved' ? ' on' : '')} onClick={() => setMode('meet')}>+ Anderer Ort</button>
             </div>

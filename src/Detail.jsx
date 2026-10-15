@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
-import { Avatar, useExtras, homeOf, placeOf } from './common.jsx';
+import { Emo, Avatar, useExtras, homeOf, placeOf } from './common.jsx';
 import { Back, Chat, Nav, Pin, Send, Share, Trash, WeatherIcon, Close } from './Icons.jsx';
 import { statusTexts, kindOf, yesList, maybeList, noList, myAnswer, respOf, isLive } from './status.js';
 import { dayLabel, hhmm } from './time.js';
@@ -103,7 +103,7 @@ export default function Detail({ s, me, badges = {}, onBack, onRespond, onDelete
             {ended ? `Beendet · ${dayLabel(new Date(s.starts_at))}, ${hhmm(s.starts_at)} Uhr`
               : t.live && k !== 'plan' ? t.time : `${dayLabel(new Date(s.starts_at))} · ${hhmm(s.starts_at)} – ${hhmm(s.ends_at)} Uhr`}
           </span>
-          <h1 className="h1">{s.icon} {t.title}</h1>
+          <h1 className="h1"><Emo i={s.icon} /> {t.title}</h1>
           <span className="soft">{t.sub}</span>
           {s.note && <span className="soft" style={{ marginTop: 6, fontSize: 16, lineHeight: '22px' }}>„{s.note}“</span>}
         </div>

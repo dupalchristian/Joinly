@@ -1,3 +1,4 @@
+import { Emo } from './common.jsx';
 import { ICON_GROUPS } from './activities.js';
 
 export default function IconPicker({ value, onChange }) {
@@ -8,7 +9,7 @@ export default function IconPicker({ value, onChange }) {
           <span className="small muted">{title}</span>
           <div className="emoji-grid">
             {list.map(i => (
-              <button key={title + i} type="button" role="radio" aria-checked={i === value} className={i === value ? 'on' : ''} onClick={() => onChange(i)}>{i}</button>
+              <button key={title + i} type="button" role="radio" aria-checked={i === value} className={i === value ? 'on' : ''} onClick={() => onChange(i)}><Emo i={i} /></button>
             ))}
           </div>
         </div>
