@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from './api.js';
 import { Avatar, useExtras, WeatherBadge, placeText } from './common.jsx';
-import { statusTexts } from './Feed.jsx';
+import { statusTexts, goingPeople, myAnswer } from './status.js';
 import { Nav, Pin } from './Icons.jsx';
 import { dayLabel, hhmm } from './time.js';
 import { googleMapsUrl, appleMapsUrl, isApple } from './services.js';
@@ -14,9 +14,9 @@ export default function PublicStatus({ s, me, onMe, onDone, onReload }) {
   const viewer = me || { id: '__guest__' };
   const { wx, drive } = useExtras(s, me);
   const t = statusTexts(s, viewer);
-  const people = [s.author, ...s.participants.map(p => p.profiles)].filter(Boolean);
+  const people = goingPeople(s);
   const isHost = me && s.profile_id === me.id;
-  const joined = me && s.participants.some(p => p.profile_id === me.id);
+  const joined = me && !!myAnswer(s, me);
   const over = new Date(s.ends_at) < new Date();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');

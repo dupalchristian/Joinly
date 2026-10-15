@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Avatar, useExtras, WeatherBadge, placeText } from './common.jsx';
 import { buildStories, StoryRow, StoryViewer } from './Stories.jsx';
+import { kindOf, statusTexts, goingPeople } from './status.js';
+import RsvpBar, { answerSummary } from './Rsvp.jsx';
 import { Pin, Plus, Users } from './Icons.jsx';
 import { dayLabel, hhmm, longDate, startOfDay } from './time.js';
 
@@ -10,23 +12,12 @@ function useClock() {
   return now;
 }
 
-export const kindOf = (s) => s.kind || 'plan';
-export function statusTexts(s, me, now = new Date()) {
-  const k = kindOf(s);
-  const isHost = s.profile_id === me.id;
-  const who = isHost ? 'Du' : s.author?.first_name;
-  const live = new Date(s.starts_at) <= now && new Date(s.ends_at) > now;
-  const time = live && k !== 'plan' ? `Jetzt bis ${hhmm(s.ends_at)} Uhr` : `${hhmm(s.starts_at)} – ${hhmm(s.ends_at)} Uhr`;
-  if (k === 'free') return { title: 'Gerade frei', sub: isHost ? 'Du hast Zeit' : `${who} hat Zeit`, time, joinLabel: 'Bin dabei', joinedLabel: 'Dabei ✓', live };
-  if (k === 'open') return { title: `Kommt vorbei${s.place_name ? ': ' + s.place_name : ''}`, sub: isHost ? 'Deine Tür ist offen' : `${who} ist da, komm einfach vorbei`, time, joinLabel: 'Komme vorbei', joinedLabel: 'Komme ✓', live };
-  return { title: s.activity, sub: `${isHost ? 'Du bist' : who} offen dafür`, time, joinLabel: 'Bin dabei', joinedLabel: 'Dabei ✓', live };
-}
+export { kindOf, statusTexts } from './status.js';
 
-function StatusCard({ s, me, onOpen, onToggle }) {
+function StatusCard({ s, me, badges, onOpen, onRespond }) {
   const { wx, drive } = useExtras(s, me);
   const isHost = s.profile_id === me.id;
-  const people = [s.author, ...s.participants.map(p => p.profiles)].filter(Boolean);
-  const joined = s.participants.some(p => p.profile_id === me.id);
+  const people = goingPeople(s);
   const t = statusTexts(s, me);
   return (
     <article className="card">
@@ -43,18 +34,17 @@ function StatusCard({ s, me, onOpen, onToggle }) {
       {(kindOf(s) !== 'free' || s.place_name) && <div className="place"><Pin size={16} /><span>{placeText(s, drive)}</span></div>}
       <div className="row between">
         <div className="row" style={{ gap: 10 }}>
-          <div className="avatars">{people.slice(0, 5).map(p => <Avatar key={p.id} p={p} me={me} />)}</div>
-          <span className="soft" style={{ fontSize: 14, fontWeight: 600 }}>{people.length} dabei</span>
+          <div className="avatars">{people.slice(0, 5).map(p => <Avatar key={p.id} p={p} me={me} badge={badges?.[p.id]} />)}</div>
+          <span className="soft" style={{ fontSize: 14, fontWeight: 600 }}>{answerSummary(s)}</span>
         </div>
-        {isHost
-          ? <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>Dein Status</span>
-          : <button className={'btn' + (joined ? ' on' : '')} onClick={onToggle} aria-pressed={joined}>{joined ? t.joinedLabel : t.joinLabel}</button>}
+        {isHost && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>Dein Status</span>}
       </div>
+      {!isHost && <RsvpBar s={s} me={me} onRespond={onRespond} showLate={false} />}
     </article>
   );
 }
 
-export default function Feed({ me, groups, groupId, setGroupId, statuses, members = [], loading, onOpen, onToggle, onCreate, onQuick, onGroups, onProfile }) {
+export default function Feed({ me, groups, groupId, setGroupId, statuses, members = [], badges = {}, loading, onHistory, onOpen, onRespond, onCreate, onQuick, onGroups, onProfile }) {
   const now = useClock();
   const [story, setStory] = useState(null);
   const group = groups.find(g => g.id === groupId);
@@ -104,9 +94,9 @@ export default function Feed({ me, groups, groupId, setGroupId, statuses, member
       )}
       {active.length === 1 && <div className="label" style={{ marginTop: 22 }}>{group?.name}</div>}
 
-      {group && <StoryRow stories={stories} me={me} onOpen={setStory} onCreate={onCreate} />}
+      {group && <StoryRow stories={stories} me={me} badges={badges} onOpen={setStory} onCreate={onCreate} />}
       {story !== null && (
-        <StoryViewer stories={stories} start={story} me={me} onClose={() => setStory(null)} onToggle={onToggle}
+        <StoryViewer stories={stories} start={story} me={me} onClose={() => setStory(null)} onRespond={onRespond}
           onDetails={(id) => { setStory(null); onOpen(id); }} />
       )}
 
@@ -139,10 +129,14 @@ export default function Feed({ me, groups, groupId, setGroupId, statuses, member
         <section key={sec.key} className="section stack" aria-label={sec.label}>
           <h2 className="label" style={{ margin: 0 }}>{sec.label}</h2>
           {sec.items.map(s => (
-            <StatusCard key={s.id} s={s} me={me} onOpen={() => onOpen(s.id)} onToggle={() => onToggle(s)} />
+            <StatusCard key={s.id} s={s} me={me} badges={badges} onOpen={() => onOpen(s.id)} onRespond={onRespond} />
           ))}
         </section>
       ))}
+
+      {group && (
+        <button className="btn ghost block" style={{ marginTop: 28 }} onClick={onHistory}>🕘 Verlauf: vergangene Aktivitäten</button>
+      )}
 
       {group && (
         <div className="bottom"><div className="bottom-inner">

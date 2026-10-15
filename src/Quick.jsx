@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from './api.js';
 import { Close } from './Icons.jsx';
 import PlaceSearch from './PlaceSearch.jsx';
+import IconPicker from './IconPicker.jsx';
 import { homeOf } from './common.jsx';
 import { hhmm } from './time.js';
 
@@ -106,9 +107,7 @@ export default function Quick({ kind, me, group, onClose, onPosted }) {
               )}
               {mode === 'search' && <PlaceSearch label="Adresse" placeholder="Straße und Ort" value={place} onPick={setPlace} near={homeOf(me)} />}
               <span className="small muted">Symbol</span>
-              <div className="emoji-grid" role="radiogroup" aria-label="Symbol wählen">
-                {OPEN_ICONS.map(i => <button key={i} role="radio" aria-checked={i === icon} className={i === icon ? 'on' : ''} onClick={() => setIcon(i)}>{i}</button>)}
-              </div>
+              <IconPicker value={icon} onChange={setIcon} />
               <span className="small muted">Der Ort wird auf diesem Handy gemerkt, damit es nächstes Mal mit einem Tipp geht. Mit „Adresse suchen“ können die anderen direkt hin navigieren.</span>
             </>
           )}

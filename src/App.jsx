@@ -13,6 +13,8 @@ import PublicStatus from './PublicStatus.jsx';
 import { kindOf } from './Feed.jsx';
 import { refreshPush } from './push.js';
 import { readCache, writeCache, clearCache } from './cache.js';
+import { buildBadges } from './badges.js';
+import History from './History.jsx';
 import { hhmm, dayName } from './time.js';
 
 const appBase = () => location.origin + location.pathname;
@@ -54,7 +56,10 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [tick, setTick] = useState(0);
   const [pub, setPub] = useState(null);
-  const [members, setMembers] = useState([]);             // geteilter Status, den man (noch) nicht in der Gruppe sieht
+  const [members, setMembers] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [counts, setCounts] = useState([]);
+  const [sharing, setSharing] = useState(null);       // Status-ID, für die der Live-Standort geteilt wird             // geteilter Status, den man (noch) nicht in der Gruppe sieht
 
   const setGroupId = (id) => { setGroupIdRaw(id); writeGroup(id); };
 
@@ -202,20 +207,61 @@ export default function App() {
     try { setMe(await api.init().then(r => r.me)); } catch { /* egal */ }
   };
 
-  const toggleJoin = async (s) => {
-    const joined = s.participants.some(p => p.profile_id === me.id);
-    // sofort anzeigen, dann speichern
+  // Antwort: yes | maybe | no (+ Verspätung). Nochmal auf dieselbe Antwort tippen nimmt sie zurück.
+  const respond = async (s, response, late = null) => {
+    const mine = s.participants.find(p => p.profile_id === me.id);
+    const same = mine && (mine.response || 'yes') === response && (response !== 'yes' || (mine.late_minutes ?? null) === (late ?? null));
+    const undo = same && (response !== 'yes' || late === null);
     setStatuses(list => list.map(x => x.id !== s.id ? x : {
-      ...x, participants: joined
+      ...x, participants: undo
         ? x.participants.filter(p => p.profile_id !== me.id)
-        : [...x.participants, { profile_id: me.id, profiles: me }]
+        : [...x.participants.filter(p => p.profile_id !== me.id), { profile_id: me.id, response, late_minutes: response === 'yes' ? late : null, profiles: me }]
     }));
     try {
-      if (joined) await api.leave(s.id); else await api.join(s.id);
-      if (!joined) setToast(kindOf(s) === 'open' ? 'Du kommst vorbei' : kindOf(s) === 'free' ? `Du bist dabei – meld dich bei ${s.author?.first_name}` : `Du bist bei ${s.activity} dabei`);
+      if (undo) await api.leave(s.id);
+      else await api.respond(s.id, response, late);
+      if (!undo && !mine && response === 'yes') setToast(kindOf(s) === 'open' ? 'Du kommst vorbei' : `Du bist bei ${s.activity} dabei`);
+      if (!undo && response === 'yes' && late) setToast(`Alle sehen: du kommst ${late} Min. später`);
+      if (!undo && response === 'maybe') setToast('Gespeichert: du kommst evtl. nach');
+      if (!undo && response === 'no') setToast('Abgesagt');
     } catch (e) { setToast('Hat nicht geklappt: ' + e.message); }
     loadStatuses().catch(() => {});
   };
+
+  // Live-Standort teilen, solange die Aktivität läuft und die App offen ist
+  useEffect(() => {
+    if (!sharing || !navigator.geolocation) return;
+    let last = 0;
+    const st = statuses.find(x => x.id === sharing) || history.find(x => x.id === sharing);
+    const endsAt = st ? new Date(st.ends_at).getTime() : Date.now() + 3 * 3600000;
+    const watch = navigator.geolocation.watchPosition((pos) => {
+      if (Date.now() > endsAt) { setSharing(null); return; }
+      if (Date.now() - last < 15000) return;
+      last = Date.now();
+      api.shareLocation(sharing, { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }).catch(() => {});
+    }, (err) => { setToast(err.code === 1 ? 'Standort-Zugriff wurde nicht erlaubt' : 'Standort nicht verfügbar'); setSharing(null); },
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 });
+    const stopAt = setTimeout(() => setSharing(null), Math.max(0, endsAt - Date.now()));
+    return () => { navigator.geolocation.clearWatch(watch); clearTimeout(stopAt); };
+  }, [sharing]);
+
+  const toggleShare = async (s) => {
+    if (sharing === s.id) { setSharing(null); await api.stopLocation(s.id).catch(() => {}); setToast('Standort wird nicht mehr geteilt'); }
+    else { setSharing(s.id); setToast('Dein Standort wird geteilt, solange die App offen ist'); }
+  };
+
+  // Verlauf und Abzeichen
+  const loadHistory = useCallback(async () => {
+    if (!groupId) return;
+    const rows = await api.listHistory(groupId);
+    setHistory(rows); writeCache('hist:' + groupId, rows);
+  }, [groupId]);
+  useEffect(() => {
+    if (!me || !groupId) return;
+    const c = readCache('cnt:' + groupId); if (c) setCounts(c);
+    api.activityCounts(groupId).then(r => { setCounts(r); writeCache('cnt:' + groupId, r); }).catch(() => {});
+  }, [me?.id, groupId, tick]);
+  const badges = buildBadges(counts, Object.fromEntries([...history, ...statuses].map(x => [x.activity, x.icon])));
 
   if (boot.loading) return <div className="app"><div className="spinner" aria-label="Lädt" /></div>;
   if (boot.error) return (
@@ -247,7 +293,7 @@ export default function App() {
   );
 
   const group = groups.find(g => g.id === groupId && g.status === 'active');
-  const sel = screen.name === 'detail' ? statuses.find(s => s.id === screen.id) : null;
+  const sel = screen.name === 'detail' ? (statuses.find(s => s.id === screen.id) || history.find(s => s.id === screen.id)) : null;
   const go = (name, extra) => { setScreen({ name, ...extra }); window.scrollTo(0, 0); };
 
   return (
@@ -258,8 +304,8 @@ export default function App() {
         </div>
       )}
       {screen.name === 'feed' && (
-        <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} members={members} loading={loadingFeed && !statuses.length}
-          onOpen={(id) => go('detail', { id })} onToggle={toggleJoin} onCreate={() => go('create')} onQuick={(kind) => go('quick', { kind })}
+        <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} members={members} badges={badges} onHistory={() => { loadHistory().catch(() => {}); go('history'); }} loading={loadingFeed && !statuses.length}
+          onOpen={(id) => go('detail', { id })} onRespond={respond} onCreate={() => go('create')} onQuick={(kind) => go('quick', { kind })}
           onGroups={() => go('groups')} onProfile={() => go('profile')} />
       )}
       {screen.name === 'quick' && group && (
@@ -267,11 +313,16 @@ export default function App() {
           onPosted={async () => { await loadStatuses(); go('feed'); setToast(screen.kind === 'open' ? 'Deine Tür ist offen' : 'Alle sehen jetzt, dass du frei bist'); }} />
       )}
       {screen.name === 'detail' && sel && (
-        <Detail s={sel} me={me} tick={tick} onBack={() => go('feed')} onToggle={toggleJoin} onEdit={() => go('edit', { id: sel.id })} onShare={shareStatus} onEnd={endStatus}
+        <Detail s={sel} me={me} tick={tick} badges={badges} toast={setToast} sharing={sharing === sel.id} onToggleShare={toggleShare}
+          onBack={() => go(screen.from || 'feed')} onRespond={respond} onEdit={() => go('edit', { id: sel.id })} onShare={shareStatus} onEnd={endStatus}
           onDelete={async (id) => { await api.deleteStatus(id); await loadStatuses(); go('feed'); setToast('Status gelöscht'); }} />
       )}
       {screen.name === 'detail' && !sel && <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} members={members} loading
-        onOpen={(id) => go('detail', { id })} onToggle={toggleJoin} onCreate={() => go('create')} onQuick={(kind) => go('quick', { kind })} onGroups={() => go('groups')} onProfile={() => go('profile')} />}
+        onOpen={(id) => go('detail', { id })} onRespond={respond} onCreate={() => go('create')} onQuick={(kind) => go('quick', { kind })} onGroups={() => go('groups')} onProfile={() => go('profile')} />}
+      {screen.name === 'history' && (
+        <History me={me} group={group} items={history} badges={badges} reload={loadHistory} tick={tick}
+          onBack={() => go('feed')} onOpen={(id) => go('detail', { id, from: 'history' })} />
+      )}
       {screen.name === 'create' && group && (
         <Create me={me} group={group} onClose={() => go('feed')}
           onPosted={async () => { await loadStatuses(); go('feed'); setToast('Dein Status ist online'); }} />
@@ -285,7 +336,7 @@ export default function App() {
           onBack={() => go('feed')} reloadGroups={reloadGroups} toast={setToast} />
       )}
       {screen.name === 'profile' && (
-        <Profile me={me} group={group} onBack={() => go('feed')} onSaved={setMe} toast={setToast}
+        <Profile me={me} group={group} counts={counts} onBack={() => go('feed')} onSaved={setMe} toast={setToast}
           onLogout={async () => { await api.logout(); clearCache(); location.reload(); }} />
       )}
       <Toast text={toast} onDone={() => setToast('')} />

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Avatar, useExtras, placeText } from './common.jsx';
-import { statusTexts } from './Feed.jsx';
+import { statusTexts, goingPeople } from './status.js';
+import RsvpBar, { answerSummary } from './Rsvp.jsx';
 import { Close, Pin, WeatherIcon, Plus } from './Icons.jsx';
 import { dayLabel, hhmm } from './time.js';
 
@@ -27,7 +28,7 @@ export function buildStories(statuses, members, me, now = new Date()) {
   return [{ ...mine, person: { ...me, ...(mine.person || {}) } }, ...others, ...idle];
 }
 
-export function StoryRow({ stories, me, onOpen, onCreate }) {
+export function StoryRow({ stories, me, badges = {}, onOpen, onCreate }) {
   return (
     <div className="stories" role="list" aria-label="Status deiner Freunde">
       {stories.map((r, i) => {
@@ -39,7 +40,7 @@ export function StoryRow({ stories, me, onOpen, onCreate }) {
             <button className="story-btn" onClick={() => (has ? onOpen(i) : isMe ? onCreate() : null)}
               aria-label={has ? `${label}: ${r.statuses.length} Status ansehen` : isMe ? 'Status erstellen' : `${label} hat gerade nichts geplant`}
               style={!has && !isMe ? { opacity: 0.45, cursor: 'default' } : undefined}>
-              <Avatar p={r.person} me={me} size={62} ring={has ? (r.live ? 'live' : 'soon') : null} />
+              <Avatar p={r.person} me={me} size={62} ring={has ? (r.live ? 'live' : 'soon') : null} badge={badges[r.person.id]} />
               {has && <span className="story-badge" aria-hidden="true">{r.statuses[0].icon}</span>}
               {isMe && !has && <span className="story-badge plus" aria-hidden="true"><Plus size={14} /></span>}
             </button>
@@ -70,7 +71,7 @@ function StorySlide({ s, me }) {
   );
 }
 
-export function StoryViewer({ stories, start, me, onClose, onToggle, onDetails }) {
+export function StoryViewer({ stories, start, me, onClose, onRespond, onDetails }) {
   const seq = stories.flatMap((r, pi) => r.statuses.map((s, si) => ({ s, person: r.person, pi, si, n: r.statuses.length })));
   const startIdx = Math.max(0, seq.findIndex(x => x.pi === start));
   const [idx, setIdx] = useState(startIdx);
@@ -101,8 +102,7 @@ export function StoryViewer({ stories, start, me, onClose, onToggle, onDetails }
   if (!cur) return null;
   const s = cur.s;
   const isHost = s.profile_id === me.id;
-  const joined = s.participants.some(p => p.profile_id === me.id);
-  const people = [s.author, ...s.participants.map(p => p.profiles)].filter(Boolean);
+  const people = goingPeople(s);
   const t = statusTexts(s, me);
 
   return (
@@ -133,14 +133,10 @@ export function StoryViewer({ stories, start, me, onClose, onToggle, onDetails }
       <div className="story-foot">
         <div className="row" style={{ gap: 10, justifyContent: 'center' }}>
           <div className="avatars">{people.slice(0, 6).map(p => <Avatar key={p.id} p={p} me={me} />)}</div>
-          <span className="soft small">{people.length} dabei</span>
+          <span className="soft small">{answerSummary(s)}</span>
         </div>
-        <div className="grid2">
-          <button className="btn ghost block" onClick={() => onDetails(s.id)}>Details</button>
-          {isHost
-            ? <button className="btn ghost block" onClick={() => onDetails(s.id)}>Dein Status</button>
-            : <button className={'btn block' + (joined ? ' ghost' : ' primary')} onClick={() => onToggle(s)}>{joined ? `${t.joinedLabel}` : t.joinLabel}</button>}
-        </div>
+        {!isHost && <div onPointerDown={() => setPaused(true)}><RsvpBar s={s} me={me} onRespond={onRespond} showLate={false} /></div>}
+        <button className="btn ghost block" onClick={() => onDetails(s.id)}>{isHost ? 'Dein Status · Details' : 'Details'}</button>
       </div>
     </div>
   );

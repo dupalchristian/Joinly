@@ -3,7 +3,20 @@ import { weatherFor, driveInfo, FALLBACK_POS } from './services.js';
 import { WeatherIcon } from './Icons.jsx';
 
 // Profilbild > eigener Avatar (Symbol auf Farbe) > Anfangsbuchstabe
-export function Avatar({ p, me, lg, size, ring }) {
+export function Avatar(props) {
+  const { badge, size, lg } = props;
+  if (!badge) return <AvatarCore {...props} />;
+  const px = size || (lg ? 40 : 30);
+  const bs = Math.max(16, Math.round(px * 0.42));
+  return (
+    <span className="avatar-wrap" title={`${badge.n}× ${badge.activity}`}>
+      <AvatarCore {...props} />
+      <span className={'badge-mini' + (badge.level > 1 ? ' gold' : '')} style={{ width: bs, height: bs, fontSize: Math.round(bs * 0.6) }} aria-label={`Abzeichen: ${badge.n}× ${badge.activity}`}>{badge.icon}</span>
+    </span>
+  );
+}
+
+function AvatarCore({ p, me, lg, size, ring }) {
   const isMe = me && p?.id === me.id;
   const px = size || (lg ? 40 : 30);
   const style = { width: px, height: px, fontSize: Math.round(px * (p?.avatar_emoji ? 0.55 : 0.36)) };

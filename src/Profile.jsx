@@ -5,8 +5,9 @@ import { Back } from './Icons.jsx';
 import PlaceSearch from './PlaceSearch.jsx';
 import { enablePush, pushState } from './push.js';
 import AvatarEditor from './AvatarEditor.jsx';
+import { badgeIcon } from './badges.js';
 
-export default function Profile({ me, group, onBack, onSaved, toast, onLogout }) {
+export default function Profile({ me, group, counts = [], onBack, onSaved, toast, onLogout }) {
   const [name, setName] = useState(me.first_name || '');
   const [phone, setPhone] = useState(me.phone || '');
   const [av, setAv] = useState({ avatar_url: me.avatar_url || null, avatar_emoji: me.avatar_emoji || null, avatar_color: me.avatar_color || '#2E2E2E' });
@@ -51,6 +52,26 @@ export default function Profile({ me, group, onBack, onSaved, toast, onLogout })
         <label className="field">Vorname<input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} /></label>
         <label className="field">Handynummer<input className="input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
         <PlaceSearch label="Heimadresse (für Entfernung und Fahrzeit)" placeholder="Straße und Ort" value={home} onPick={setHome} />
+      </section>
+
+      <section className="stack">
+        <h2 className="label" style={{ margin: 0 }}>Deine Abzeichen</h2>
+        {counts.filter(c => c.profile_id === me.id).length === 0
+          ? <span className="small muted">Nach 5 und 10 Aktivitäten derselben Art bekommst du ein Abzeichen neben deinem Avatar, zum Beispiel 👟 fürs Joggen oder 🧊 fürs Eisbaden.</span>
+          : counts.filter(c => c.profile_id === me.id).sort((a, b) => b.n - a.n).map(c => {
+              const n = Number(c.n); const goal = n >= 10 ? 10 : n >= 5 ? 10 : 5;
+              return (
+                <div key={c.activity} className="row" style={{ gap: 12 }}>
+                  <span style={{ fontSize: 24, width: 36, textAlign: 'center', opacity: n >= 5 ? 1 : 0.35 }}>{badgeIcon(c.activity)}</span>
+                  <div className="col grow" style={{ gap: 4 }}>
+                    <span style={{ fontWeight: 600 }}>{c.activity} <span className="small muted">· {n}×{n >= 10 ? ' · Legende' : n >= 5 ? ' · Stammgast' : ''}</span></span>
+                    <div style={{ height: 6, borderRadius: 3, background: '#2A2A2A', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.min(100, (n / goal) * 100)}%`, height: '100%', background: 'var(--accent)' }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
       </section>
 
       <section className="stack">

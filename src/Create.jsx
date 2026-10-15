@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from './api.js';
-import { DEFAULT_ACTIVITIES, ICON_CHOICES } from './activities.js';
+import { DEFAULT_ACTIVITIES } from './activities.js';
+import IconPicker from './IconPicker.jsx';
 import { homeOf } from './common.jsx';
 import { Bell, Close, WeatherIcon } from './Icons.jsx';
 import PlaceSearch from './PlaceSearch.jsx';
-import { weatherFor, FALLBACK_POS } from './services.js';
+import { weatherFor, searchPlaces, FALLBACK_POS } from './services.js';
+import MapView from './MapView.jsx';
 import { addDays, combine, dayChip, dayDiff, dayName, hhmm, nextHalfHour, startOfDay, timeOptions } from './time.js';
 
 const TIMES = timeOptions();
@@ -28,6 +30,7 @@ export default function Create({ me, group, onClose, onPosted, existing }) {
   const [mode, setMode] = useState(ex ? ex.place_mode : 'search');
   const [place, setPlace] = useState(ex && ex.place_mode === 'search' && ex.place_lat != null
     ? { name: ex.place_name, sub: ex.place_address, lat: ex.place_lat, lng: ex.place_lng } : null);
+  const [typed, setTyped] = useState('');
   const [meet, setMeet] = useState(ex && ex.place_mode === 'meet' ? ex.place_name || '' : '');
   const [note, setNote] = useState(ex?.note || '');
   const [wx, setWx] = useState(undefined);
@@ -61,10 +64,17 @@ export default function Create({ me, group, onClose, onPosted, existing }) {
     setBusy(true); setErr('');
     try {
       if (custom) await api.addGroupActivity(group.id, chosen.name, chosen.icon);
-      const placeData = mode === 'search' && place
-        ? { place_mode: 'search', place_name: place.name, place_address: place.sub || null, place_lat: place.lat, place_lng: place.lng }
-        : mode === 'meet' && meet.trim()
-          ? { place_mode: 'meet', place_name: meet.trim(), place_address: null, place_lat: null, place_lng: null }
+      // Ort eingetippt, aber keinen Vorschlag angetippt? Dann automatisch den besten Treffer nehmen.
+      let pl = place;
+      if (mode === 'search' && !pl && typed.trim().length >= 3) {
+        const hits = await searchPlaces(typed.trim(), homeOf(me)).catch(() => []);
+        pl = hits[0] || null;
+      }
+      const meetText = mode === 'meet' ? meet.trim() : (mode === 'search' && !pl ? typed.trim() : '');
+      const placeData = mode === 'search' && pl
+        ? { place_mode: 'search', place_name: pl.name, place_address: pl.sub || null, place_lat: pl.lat, place_lng: pl.lng }
+        : meetText
+          ? { place_mode: 'meet', place_name: meetText, place_address: null, place_lat: null, place_lng: null }
           : { place_mode: 'none', place_name: null, place_address: null, place_lat: null, place_lng: null };
       const data = { activity: chosen.name, icon: chosen.icon,
         starts_at: start.toISOString(), ends_at: end.toISOString(), note: note.trim() || null, ...placeData };
@@ -115,11 +125,7 @@ export default function Create({ me, group, onClose, onPosted, existing }) {
               <input className="input" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="z. B. Daydrinking" maxLength={40} />
             </label>
             <span className="small muted">Symbol</span>
-            <div className="emoji-grid" role="radiogroup" aria-label="Symbol wählen">
-              {ICON_CHOICES.map(i => (
-                <button key={i} role="radio" aria-checked={i === customIcon} className={i === customIcon ? 'on' : ''} onClick={() => setCustomIcon(i)}>{i}</button>
-              ))}
-            </div>
+            <IconPicker value={customIcon} onChange={setCustomIcon} />
             <span className="small muted">Eigene Aktivitäten stehen danach für die ganze Gruppe zur Auswahl.</span>
           </div>
         )}
@@ -169,7 +175,12 @@ export default function Create({ me, group, onClose, onPosted, existing }) {
           ))}
         </div>
         {mode === 'search' && (
-          <PlaceSearch label="Ort suchen" placeholder="z. B. See, Park, Restaurant" value={place} onPick={setPlace} near={homeOf(me)} />
+          <>
+            <PlaceSearch label="Ort suchen" placeholder="z. B. See, Park, Restaurant" value={place} onPick={setPlace} onText={(v) => { setTyped(v); if (place && v !== place.name) setPlace(null); }} near={homeOf(me)} />
+            {place
+              ? <div className="map" style={{ height: 170, borderRadius: 14, overflow: 'hidden' }}><MapView place={place} /></div>
+              : typed.trim().length >= 3 && <span className="small muted">Tipp einen Vorschlag an, damit der Ort auf der Karte erscheint.</span>}
+          </>
         )}
         {mode === 'meet' && (
           <label className="field">Treffpunkt beschreiben

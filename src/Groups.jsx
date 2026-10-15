@@ -9,7 +9,29 @@ export default function Groups({ me, groups, groupId, setGroupId, onBack, reload
   const group = groups.find(g => g.id === groupId && g.status === 'active');
   const [members, setMembers] = useState([]);
   const [newName, setNewName] = useState('');
-  const [creating, setCreating] = useState(groups.length === 0);
+  const [creating, setCreating] = useState(false);
+  const [joinText, setJoinText] = useState('');
+  const [joining, setJoining] = useState(groups.length === 0);
+  const [busy, setBusy] = useState(false);
+
+  // Einladungslink oder Code einfügen (z. B. in der iPhone-App, die den Link aus Safari nicht kennt)
+  const joinByLink = async (e) => {
+    e.preventDefault();
+    const m = joinText.match(/invite=([a-zA-Z0-9]+)/);
+    const code = (m ? m[1] : joinText.trim()).replace(/[^a-zA-Z0-9]/g, '');
+    if (!code) return;
+    setBusy(true);
+    try {
+      const info = await api.inviteInfo(code);
+      if (!info) { toast('Diesen Einladungslink gibt es nicht. Bitte nochmal kopieren.'); setBusy(false); return; }
+      await api.requestJoin(code);
+      await reloadGroups();
+      setJoinText(''); setJoining(false);
+      toast(`Anfrage für „${info.group_name}“ gesendet – der Admin gibt dich frei`);
+    } catch (err) { toast(err.message); }
+    setBusy(false);
+  };
+  const pasteLink = async () => { try { setJoinText(await navigator.clipboard.readText()); } catch { /* Einfügen manuell */ } };
 
   const loadMembers = () => group && api.listMembers(group.id).then(setMembers).catch(() => {});
   useEffect(() => { loadMembers(); }, [group?.id, tick]);
@@ -43,6 +65,26 @@ export default function Groups({ me, groups, groupId, setGroupId, onBack, reload
         {groups.length > 0 && <button className="icon-btn" onClick={onBack} aria-label="Zurück"><Back /></button>}
         <h1 className="h2">Gruppen</h1>
       </div>
+
+      {groups.length === 0 && (
+        <div className="banner" style={{ lineHeight: '22px' }}>
+          <b>Du wurdest eingeladen?</b> Füg unten den Einladungslink aus WhatsApp ein. Danach gibt dich der Admin frei und du siehst alles von deiner Gruppe.
+        </div>
+      )}
+      {joining ? (
+        <form className="stack" onSubmit={joinByLink}>
+          <h2 className="label" style={{ margin: 0 }}>Gruppe beitreten</h2>
+          <label className="field">Einladungslink oder Code
+            <input className="input" value={joinText} onChange={(e) => setJoinText(e.target.value)} placeholder="https://…?invite=…" autoComplete="off" />
+          </label>
+          <div className="grid2">
+            <button type="button" className="btn ghost block" onClick={pasteLink}>Aus Zwischenablage</button>
+            <button className="btn primary block" disabled={!joinText.trim() || busy}>{busy ? 'Einen Moment …' : 'Beitreten'}</button>
+          </div>
+        </form>
+      ) : (
+        <button className="btn ghost block" onClick={() => setJoining(true)}>Mit Einladungslink beitreten</button>
+      )}
 
       {groups.length > 0 && (
         <div className="list">

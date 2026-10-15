@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { searchPlaces } from './services.js';
 
 // Suchfeld mit Vorschlägen aus OpenStreetMap
-export default function PlaceSearch({ label, placeholder, value, onPick, near }) {
+export default function PlaceSearch({ label, placeholder, value, onPick, onText, near }) {
   const [q, setQ] = useState(value?.name || '');
   const [res, setRes] = useState([]);
   const [open, setOpen] = useState(false);
@@ -12,6 +12,7 @@ export default function PlaceSearch({ label, placeholder, value, onPick, near })
 
   const change = (v) => {
     setQ(v);
+    onText?.(v);
     setOpen(true);
     clearTimeout(timer.current);
     if (v.trim().length < 3) { setRes([]); return; }

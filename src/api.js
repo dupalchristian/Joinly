@@ -170,7 +170,7 @@ const supabaseApi = {
 
   async listStatuses(groupId, fromIso, toIso) {
     return q(() => sb.from('statuses')
-      .select(`*, author:profiles!statuses_profile_id_fkey(id, first_name, ${AV}), participants(profile_id, profiles(id, first_name, ${AV}))`)
+      .select(`*, author:profiles!statuses_profile_id_fkey(id, first_name, ${AV}), participants(profile_id, response, late_minutes, profiles(id, first_name, ${AV}))`)
       .eq('group_id', groupId)
       .gte('ends_at', fromIso)
       .lte('starts_at', toIso)
@@ -212,8 +212,60 @@ const supabaseApi = {
   },
 
   async join(statusId) {
+    return this.respond(statusId, 'yes', null);
+  },
+
+  // Antwort auf einen Status: yes | maybe | no, optional Verspätung in Minuten
+  async respond(statusId, response, lateMinutes = null) {
     const id = await uid();
-    check(await sb.from('participants').insert({ status_id: statusId, profile_id: id }));
+    check(await sb.from('participants').upsert(
+      { status_id: statusId, profile_id: id, response, late_minutes: response === 'yes' ? lateMinutes : null, updated_at: new Date().toISOString() },
+      { onConflict: 'status_id,profile_id' }));
+  },
+
+  async listHistory(groupId, limit = 60) {
+    return q(() => sb.from('statuses')
+      .select(`*, author:profiles!statuses_profile_id_fkey(id, first_name, ${AV}), participants(profile_id, response, late_minutes, profiles(id, first_name, ${AV})), status_photos(id, url)`)
+      .eq('group_id', groupId)
+      .lt('ends_at', new Date().toISOString())
+      .order('starts_at', { ascending: false })
+      .limit(limit));
+  },
+
+  async listLocations(statusId) {
+    return check(await sb.from('live_locations').select('*').eq('status_id', statusId));
+  },
+
+  async shareLocation(statusId, pos) {
+    const id = await uid();
+    check(await sb.from('live_locations').upsert({ status_id: statusId, profile_id: id, lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy ?? null, updated_at: new Date().toISOString() }));
+  },
+
+  async stopLocation(statusId) {
+    const id = await uid();
+    await sb.from('live_locations').delete().eq('status_id', statusId).eq('profile_id', id);
+  },
+
+  async listPhotos(statusId) {
+    return check(await sb.from('status_photos').select('*').eq('status_id', statusId).order('created_at'));
+  },
+
+  async uploadStatusPhoto(statusId, blob) {
+    const id = await uid();
+    const path = `${id}/${statusId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+    const { error } = await sb.storage.from('status-photos').upload(path, blob, { contentType: 'image/jpeg' });
+    if (error) throw new Error(error.message);
+    const url = sb.storage.from('status-photos').getPublicUrl(path).data.publicUrl;
+    check(await sb.from('status_photos').insert({ status_id: statusId, profile_id: id, url, path }));
+  },
+
+  async deletePhoto(photo) {
+    if (photo.path) await sb.storage.from('status-photos').remove([photo.path]);
+    check(await sb.from('status_photos').delete().eq('id', photo.id));
+  },
+
+  async activityCounts(groupId) {
+    return check(await sb.rpc('activity_counts', { g: groupId }));
   },
 
   async leave(statusId) {
@@ -248,6 +300,8 @@ const supabaseApi = {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'statuses', filter: 'group_id=eq.' + groupId }, cb)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, cb)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, cb)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_locations' }, cb)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'status_photos' }, cb)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'memberships', filter: 'group_id=eq.' + groupId }, cb)
       .subscribe();
     return () => { sb.removeChannel(ch); };

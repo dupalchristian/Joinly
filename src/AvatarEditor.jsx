@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { Avatar } from './common.jsx';
 
-const EMOJIS = ['😎', '🤠', '🥸', '🤓', '😺', '🦊', '🐻', '🐼', '🐯', '🦁', '🐸', '🐵', '🦉', '🐙', '🦄', '🐺', '🐶', '🐧', '🌻', '🔥', '⚡', '🌊', '🏔️', '🍀'];
+const EMOJIS = ['😎', '🤠', '🥸', '🤓', '🤪', '😈', '🤡', '👻', '💀', '👽', '🤖', '🎃', '🥷', '🧛', '🧟', '🧙', '🦸', '🦹', '🧑‍🚀', '🧑‍🍳', '🧑‍🔬', '🧑‍🎤', '🧑‍🚒', '👷', '🕵️', '💂', '🤴', '👸', '🧔', '👴', '🧢', '🎩',
+  '😺', '🦊', '🐻', '🐼', '🐯', '🦁', '🐸', '🐵', '🙈', '🦉', '🐙', '🦄', '🐺', '🐶', '🐧', '🦈', '🐊', '🦖', '🐗', '🐐', '🦥', '🦦',
+  '🌻', '🔥', '⚡', '🌊', '🏔️', '🍀', '☮️', '✌️', '🤘', '💪', '🍺', '🍕', '🌿', '🚬', '💸', '💎', '👑', '🎱', '⚽', '🥊', '🏋️', '🎮', '🎸', '🏍️'];
 const COLORS = ['#3B4A5A', '#5A3B4A', '#3B5A45', '#5A513B', '#463B5A', '#5A433B', '#3B5557', '#2E2E2E', '#6B5A2E'];
 
 // Foto auf 400×400 zuschneiden und als JPEG verkleinern
@@ -19,7 +21,9 @@ async function squareJpeg(file) {
 
 // value: { avatar_url, avatar_emoji, avatar_color }
 export default function AvatarEditor({ me, value, onChange, toast }) {
-  const [mode, setMode] = useState(null); // null | 'emoji'
+  const [mode, setMode] = useState(null); // null | 'emoji' | 'figur'
+  const [figures, setFigures] = useState([]);
+  useEffect(() => { fetch('avatars/list.json').then(r => r.ok ? r.json() : []).then(setFigures).catch(() => {}); }, []);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef();
   const preview = { ...me, ...value };
@@ -43,15 +47,30 @@ export default function AvatarEditor({ me, value, onChange, toast }) {
       <Avatar p={preview} me={me} size={104} />
       <div className="row" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
         <button className="chip" onClick={() => fileRef.current.click()} disabled={busy}>{busy ? 'Lädt hoch …' : '📷 Foto wählen'}</button>
+        {figures.length > 0 && <button className={'chip' + (mode === 'figur' ? ' on' : '')} onClick={() => setMode(mode === 'figur' ? null : 'figur')}>🦸 Figur wählen</button>}
         <button className={'chip' + (mode === 'emoji' ? ' on' : '')} onClick={() => setMode(mode === 'emoji' ? null : 'emoji')}>✨ Avatar erstellen</button>
         {(value.avatar_url || value.avatar_emoji) && (
           <button className="chip" onClick={() => onChange({ ...value, avatar_url: null, avatar_emoji: null })}>Entfernen</button>
         )}
       </div>
       <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="sr" aria-label="Foto wählen" />
+      {mode === 'figur' && (
+        <div className="avatar-pick" role="radiogroup" aria-label="Figur" style={{ width: '100%' }}>
+          {figures.map(f => {
+            const url = `avatars/${f}.webp`;
+            return (
+              <button key={f} role="radio" aria-checked={value.avatar_url === url} aria-label={f} className={value.avatar_url === url ? 'on' : ''}
+                style={{ background: '#111', padding: 0, overflow: 'hidden' }}
+                onClick={() => onChange({ ...value, avatar_url: url, avatar_emoji: null })}>
+                <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              </button>
+            );
+          })}
+        </div>
+      )}
       {mode === 'emoji' && (
         <div className="stack" style={{ width: '100%' }}>
-          <div className="avatar-pick" role="radiogroup" aria-label="Symbol">
+          <div className="avatar-pick" role="radiogroup" aria-label="Symbol" style={{ maxHeight: 290, overflowY: 'auto' }}>
             {EMOJIS.map(e => (
               <button key={e} role="radio" aria-checked={value.avatar_emoji === e} className={value.avatar_emoji === e ? 'on' : ''}
                 style={{ background: value.avatar_color || '#2E2E2E' }}

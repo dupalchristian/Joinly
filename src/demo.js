@@ -1,5 +1,5 @@
 // Demo-Modus: gleiche Funktionen wie die echte Datenbank, aber nur im Browser.
-const KEY = 'joinly-demo-v3';
+const KEY = 'joinly-demo-v4';
 const ME = 'me';
 
 const at = (dayOffset, hhmm) => {
@@ -44,6 +44,8 @@ function seed() {
       { id: 'st5', group_id: 'g1', profile_id: 't', activity: 'Daydrinking', icon: '🍹', starts_at: at(6, '14:00'), ends_at: at(6, '18:00'), place_mode: 'none' },
       { id: 'st7', group_id: 'g1', profile_id: 'm', kind: 'open', activity: 'Kommt vorbei', icon: '🔧', starts_at: rel(-30), ends_at: rel(180), place_mode: 'meet', place_name: 'Werkstatt', note: 'Grill ist an, bringt was zu trinken mit' },
       { id: 'st8', group_id: 'g1', profile_id: 'a', kind: 'free', activity: 'Gerade frei', icon: '👋', starts_at: rel(-10), ends_at: rel(110), place_mode: 'none', note: 'Lust auf Kaffee oder kurz raus' },
+      ...Array.from({ length: 6 }, (_, i) => ({ id: 'h-ice-' + i, group_id: 'g1', profile_id: 's', activity: 'Eisbaden', icon: '🧊', starts_at: at(-(i + 1) * 3, '09:00'), ends_at: at(-(i + 1) * 3, '10:00'), place_mode: 'none' })),
+      ...Array.from({ length: 11 }, (_, i) => ({ id: 'h-run-' + i, group_id: 'g1', profile_id: 'a', activity: 'Joggen', icon: '🏃', starts_at: at(-(i + 1) * 2, '18:00'), ends_at: at(-(i + 1) * 2, '19:00'), place_mode: 'none' })),
       { id: 'st6', group_id: 'g2', profile_id: ME, activity: 'Kaffee & Kuchen', icon: '☕', starts_at: at(0, '15:00'), ends_at: at(0, '17:30'), place_mode: 'meet', place_name: 'Bei Mama' }
     ],
     participants: [
@@ -108,7 +110,7 @@ export const demoApi = {
     return d.statuses.filter(s => s.group_id === groupId && s.ends_at >= fromIso && s.starts_at <= toIso)
       .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
       .map(s => ({ ...s, author: profile(s.profile_id),
-        participants: d.participants.filter(p => p.status_id === s.id).map(p => ({ profile_id: p.profile_id, profiles: profile(p.profile_id) })) }));
+        participants: d.participants.filter(p => p.status_id === s.id).map(p => ({ profile_id: p.profile_id, response: p.response || 'yes', late_minutes: p.late_minutes ?? null, profiles: profile(p.profile_id) })) }));
   },
   async createStatus(s) { const st = { id: rid(), profile_id: ME, ...s }; load().statuses.push(st); changed(); return st; },
   async updateStatus(id, patch) { const st = load().statuses.find(s => s.id === id); Object.assign(st, patch); changed(); return st; },
@@ -116,13 +118,39 @@ export const demoApi = {
     const d = load(); const s = d.statuses.find(x => x.id === id); if (!s) return null;
     const g = d.groups.find(x => x.id === s.group_id);
     return { ...s, group_name: g?.name, author: profile(s.profile_id),
-      participants: d.participants.filter(p => p.status_id === id).map(p => ({ profile_id: p.profile_id, profiles: profile(p.profile_id) })) };
+      participants: d.participants.filter(p => p.status_id === id).map(p => ({ profile_id: p.profile_id, response: p.response || 'yes', late_minutes: p.late_minutes ?? null, profiles: profile(p.profile_id) })) };
   },
   async joinStatusGuest(id) { await this.join(id); },
   async savePushSubscription() {},
   async uploadAvatar(blob) { return await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); }); },
   async deleteStatus(id) { db.statuses = load().statuses.filter(s => s.id !== id); changed(); },
-  async join(statusId) { load().participants.push({ status_id: statusId, profile_id: ME }); changed(); },
+  async join(statusId) { return this.respond(statusId, 'yes'); },
+  async respond(statusId, response, late = null) {
+    const d = load(); let p = d.participants.find(x => x.status_id === statusId && x.profile_id === ME);
+    if (!p) { p = { status_id: statusId, profile_id: ME }; d.participants.push(p); }
+    p.response = response; p.late_minutes = response === 'yes' ? late : null; changed();
+  },
+  async listHistory(groupId) {
+    const d = load(); const now = new Date().toISOString();
+    return d.statuses.filter(s => s.group_id === groupId && s.ends_at < now).sort((a, b) => b.starts_at.localeCompare(a.starts_at))
+      .map(s => ({ ...s, author: profile(s.profile_id), status_photos: (d.photos || []).filter(f => f.status_id === s.id),
+        participants: d.participants.filter(p => p.status_id === s.id).map(p => ({ profile_id: p.profile_id, response: p.response || 'yes', late_minutes: p.late_minutes ?? null, profiles: profile(p.profile_id) })) }));
+  },
+  async listLocations(statusId) { return (load().locations || []).filter(l => l.status_id === statusId); },
+  async shareLocation(statusId, pos) { const d = load(); d.locations = (d.locations || []).filter(l => !(l.status_id === statusId && l.profile_id === ME)); d.locations.push({ status_id: statusId, profile_id: ME, ...pos, updated_at: new Date().toISOString() }); changed(); },
+  async stopLocation(statusId) { const d = load(); d.locations = (d.locations || []).filter(l => !(l.status_id === statusId && l.profile_id === ME)); changed(); },
+  async listPhotos(statusId) { return (load().photos || []).filter(f => f.status_id === statusId); },
+  async uploadStatusPhoto(statusId, blob) { const url = await this.uploadAvatar(blob); const d = load(); d.photos = d.photos || []; d.photos.push({ id: rid(), status_id: statusId, profile_id: ME, url, created_at: new Date().toISOString() }); changed(); },
+  async deletePhoto(photo) { const d = load(); d.photos = (d.photos || []).filter(f => f.id !== photo.id); changed(); },
+  async activityCounts(groupId) {
+    const d = load(); const now = new Date().toISOString(); const c = {};
+    for (const s of d.statuses.filter(x => x.ends_at < now && (x.kind || 'plan') === 'plan')) {
+      const add = (pid) => { const k = pid + '|' + s.activity; c[k] = (c[k] || 0) + 1; };
+      add(s.profile_id);
+      d.participants.filter(p => p.status_id === s.id && (p.response || 'yes') === 'yes' && p.profile_id !== s.profile_id).forEach(p => add(p.profile_id));
+    }
+    return Object.entries(c).map(([k, n]) => { const [profile_id, activity] = k.split('|'); return { profile_id, activity, n }; });
+  },
   async leave(statusId) { db.participants = load().participants.filter(p => !(p.status_id === statusId && p.profile_id === ME)); changed(); },
   async listMessages(statusId) {
     return load().messages.filter(m => m.status_id === statusId).sort((a, b) => a.created_at.localeCompare(b.created_at))
