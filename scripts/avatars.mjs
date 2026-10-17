@@ -17,6 +17,11 @@ export const SHEETS = [
     names: ['esportler', 'hacker', 'alien', 'zauberer', 'zombie', 'grillmeister', 'bierfan', 'schlafmuetze', 'gorilla', 'fee', 'gaertner', 'faultier']
   },
   {
+    url: 'https://cms-toolkit-artifacts.artlist.io/content/-t-e-x-t_-t-o_-i-m-a-g-e-v1/media__1/-t-e-x-t_-t-o_-i-m-a-g-e-6bb2df00-c589-4832-b098-3ab187e0c440.png?Expires=2107596367&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=PTqLk0dcz-JOaT3~1VT0pyR0ZY23dJnUhr0xc2Omc5zfaZ5CF7uUxCyien1EF3R67yD0Et8gtCJKjSiptCFB45gTPkMaelO4b5IiteLQI3tCcC2FZU-gPm-NuPxx3QjMv85uf5peIbtAaExjtEQlx76zc7dnwuqDUatG1lej4AXGCkCuS5lIelo5SF-kqa~CRH~aFSkzIpqdaG-HXEKagw1KpXIyAvhKknRVu3dtZ3dfbqZrs7Ue1BKVaJfHxcRAVHdCHYcWwpuUykT-1QKOGE0ZKirkhlf4pHFRuU5Y~P2t~SVZfaIR2WamqnxTdySLSqbP6wJ0lvIsPbDXzPSyvA__',
+    cols: 4, rows: 4,
+    names: ['tuersteher', 'stoner', 'bonghippie', 'glatze', 'mafiaboss', 'partybunny', 'kriegerin', 'krieger', 'ork', 'elfe', 'zwerg', 'nekromant', 'cyberpunk', 'battleroyale', 'simracer', 'speedrunner']
+  },
+  {
     // eigene Emojis (transparenter Hintergrund)
     url: 'https://cms-toolkit-artifacts.artlist.io/content/-t-e-x-t_-t-o_-i-m-a-g-e-v1/media__6/-t-e-x-t_-t-o_-i-m-a-g-e-a07526f6-6718-4f3e-a535-cc5580578ab2.png?Expires=2107445427&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=osZPCSX~GMg0aP2pStFvUzs44zr3EWjbhzOvgL51UJMzsho~T7LPOwAIU270OmGgAG9R6IsaIkwq~Uj-7qh5lRZ4xitMudGOoHVPGAuJ4ccMfVUn~8~s8UrN0DLQxrLshgtZLQYsnhtOZxK8u~U44xOnLzh~idbXXlNJ0H03hYvpc0T7w-B2C0-IRuKcKkdSEP8JqI3M4Cl6F4mECKWPf3t5VIoHPciNbYX7125nmWtBwlpkP39gZFzaubgJfIFDnJmdHkbLNUHSTbi0Br9ATZaFIGAi6EWQxZjkhUQLDw4d3xhB61XeN2JipS130U9ahwVv0CFYlrveYaieFCK1SA__',
     cols: 2, rows: 1, dir: 'public/icons', size: 128,
