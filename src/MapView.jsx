@@ -4,6 +4,46 @@ import 'leaflet/dist/leaflet.css';
 
 const esc = (t) => String(t || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// Kartenhintergrund: OpenFreeMap „Dark“ – kostenlos, ohne Schlüssel und ohne Limit.
+// (CARTO verlangt seit Aug. 2026 einen Schlüssel und zeigt sonst „API KEY REQUIRED“.)
+const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark';
+const DARK_ATTR = '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
+// Ersatz, falls die dunkle Karte nicht geht (z. B. altes Handy ohne WebGL)
+function addOsm(m) {
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+  }).addTo(m);
+}
+
+async function addDarkBase(m, alive) {
+  let done = false;
+  const fallback = (layer) => {
+    if (done || !alive()) return;
+    done = true;
+    if (layer) m.removeLayer(layer);
+    addOsm(m);
+  };
+  try {
+    const [{ maplibreGL }, maplibre, worker] = await Promise.all([
+      import('@maplibre/maplibre-gl-leaflet'),
+      import('maplibre-gl'),
+      import('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'),
+      import('maplibre-gl/dist/maplibre-gl.css')
+    ]);
+    if (!alive()) return;
+    maplibre.setWorkerUrl(worker.default);
+    const layer = maplibreGL({ style: DARK_STYLE, attributionControl: { customAttribution: DARK_ATTR } }).addTo(m);
+    const gl = layer.getMaplibreMap();
+    const timer = setTimeout(() => fallback(layer), 15000);
+    gl.once('load', () => { done = true; clearTimeout(timer); });
+    // Fehler vor dem ersten Laden (z. B. Dienst nicht erreichbar) → Ersatzkarte
+    gl.on('error', () => { if (!done) { clearTimeout(timer); fallback(layer); } });
+  } catch {
+    fallback(null);
+  }
+}
+
 // Karte mit Ziel (goldener Pin), Zuhause (weißer Punkt) und Live-Standorten (Kreise mit Initial/Bild)
 export default function MapView({ place, home, markers = [] }) {
   const el = useRef(null);
@@ -14,17 +54,8 @@ export default function MapView({ place, home, markers = [] }) {
   useEffect(() => {
     if (!el.current) return;
     const m = L.map(el.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: false });
-    const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19, subdomains: 'abcd', attribution: '© OpenStreetMap · © CARTO'
-    }).addTo(m);
-    // Falls die dunkle Karte nicht lädt: normale OpenStreetMap-Karte nehmen
-    let errors = 0, switched = false;
-    dark.on('tileerror', () => {
-      if (switched || ++errors < 3) return;
-      switched = true;
-      m.removeLayer(dark);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
-    });
+    let alive = true;
+    addDarkBase(m, () => alive);
     layer.current = L.layerGroup().addTo(m);
     map.current = m;
     m.setView([48.137, 11.575], 11);
@@ -33,7 +64,7 @@ export default function MapView({ place, home, markers = [] }) {
     const t2 = setTimeout(() => m.invalidateSize(), 600);
     const onResize = () => m.invalidateSize();
     window.addEventListener('resize', onResize);
-    return () => { clearTimeout(t1); clearTimeout(t2); window.removeEventListener('resize', onResize); m.remove(); map.current = null; };
+    return () => { alive = false; clearTimeout(t1); clearTimeout(t2); window.removeEventListener('resize', onResize); m.remove(); map.current = null; };
   }, []);
 
   useEffect(() => {

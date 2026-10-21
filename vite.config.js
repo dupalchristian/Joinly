@@ -11,7 +11,8 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.js',
-      injectManifest: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,woff2}'] },
+      // Karten-Bibliothek (groß) erst laden, wenn eine Karte geöffnet wird
+      injectManifest: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,woff2}'], globIgnores: ['**/maplibre-gl*'] },
       includeAssets: ['apple-touch-icon.png', 'logo.png'],
       manifest: {
         name: 'Joinly – offen für …',
