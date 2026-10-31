@@ -15,7 +15,8 @@ import { refreshPush } from './push.js';
 import { readCache, writeCache, clearCache } from './cache.js';
 import { buildBadges } from './badges.js';
 import History from './History.jsx';
-import { hhmm, dayName } from './time.js';
+import { BucketList, IdeaDetail, IdeaForm, markBucketSeen } from './Bucket.jsx';
+import { hhmm, dayName, multiDay, whenText } from './time.js';
 
 const appBase = () => location.origin + location.pathname;
 
@@ -27,7 +28,7 @@ function shareText(s, me) {
   const note = s.note ? ` – ${s.note}` : '';
   if (k === 'free') return `${who} gerade frei bis ${hhmm(s.ends_at)} Uhr 👋${note}. Wer hat Lust?`;
   if (k === 'open') return `Kommt vorbei! ${who} bis ${hhmm(s.ends_at)} Uhr${place ? ' hier:' + place.slice(2) : ''}${note}.`;
-  return `${who} offen für ${s.activity} ${emoText(s.icon)} – ${dayName(new Date(s.starts_at))}, ${hhmm(s.starts_at)}–${hhmm(s.ends_at)} Uhr${place}${note}. Wer kommt mit?`;
+  return `${who} offen für ${s.activity} ${emoText(s.icon)} – ${multiDay(s) ? whenText(s) : `${dayName(new Date(s.starts_at))}, ${hhmm(s.starts_at)}–${hhmm(s.ends_at)} Uhr`}${place}${note}. Wer kommt mit?`;
 }
 
 const GROUP_KEY = 'joinly-group';
@@ -38,8 +39,9 @@ function takeParams() {
   const p = new URLSearchParams(location.search);
   const code = p.get('invite');
   const status = p.get('status');
-  if (code || status) history.replaceState(null, '', location.pathname);
-  return { code, status };
+  const idea = p.get('idea');
+  if (code || status || idea) history.replaceState(null, '', location.pathname);
+  return { code, status, idea };
 }
 
 export default function App() {
@@ -59,6 +61,7 @@ export default function App() {
   const [members, setMembers] = useState([]);
   const [history, setHistory] = useState([]);
   const [counts, setCounts] = useState([]);
+  const [ideas, setIdeas] = useState(() => readCache('ideas:' + readGroup()) ?? undefined); // null = Bucket List noch nicht eingerichtet
   const [sharing, setSharing] = useState(null);       // Status-ID, für die der Live-Standort geteilt wird             // geteilter Status, den man (noch) nicht in der Gruppe sieht
 
   const setGroupId = (id) => { setGroupIdRaw(id); writeGroup(id); };
@@ -95,7 +98,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const { code, status: statusLink } = takeParams();
+        const { code, status: statusLink, idea: ideaLink } = takeParams();
         const [{ me, anonymous }, info] = await Promise.all([
           api.init(),
           code ? api.inviteInfo(code).catch(() => null) : Promise.resolve(null)
@@ -118,6 +121,7 @@ export default function App() {
           const gs = await reloadGroups();
           if (gs.length === 0) setScreen({ name: 'groups' });
           if (statusLink) await openStatusLink(statusLink, me, gs);
+          else if (ideaLink) setScreen({ name: 'idea', id: ideaLink });
           refreshPush();
         } else if (statusLink) {
           await openStatusLink(statusLink, null, []);
@@ -132,11 +136,24 @@ export default function App() {
   const loadStatuses = useCallback(async () => {
     if (!groupId) { setStatuses([]); return; }
     const from = new Date(Date.now() - 12 * 3600 * 1000);
-    const to = addDays(startOfDay(new Date()), 8);
+    const to = addDays(startOfDay(new Date()), 400); // auch fest geplante Sachen weit voraus (Urlaub …)
     const rows = await api.listStatuses(groupId, from.toISOString(), to.toISOString());
     setStatuses(rows);
     writeCache('st:' + groupId, rows);
   }, [groupId]);
+
+  // Bucket List laden
+  const loadIdeas = useCallback(async () => {
+    if (!groupId) { setIdeas(undefined); return; }
+    const rows = await api.listIdeas(groupId);
+    setIdeas(rows);
+    writeCache('ideas:' + groupId, rows);
+  }, [groupId]);
+  useEffect(() => {
+    if (!me || !groupId) return;
+    setIdeas(readCache('ideas:' + groupId) ?? undefined);
+    loadIdeas().catch(() => {});
+  }, [me?.id, groupId, tick]);
 
   // Feed laden + Live-Updates
   useEffect(() => {
@@ -180,12 +197,14 @@ export default function App() {
     if (!('serviceWorker' in navigator)) return;
     const onMsg = (e) => {
       if (e.data?.type !== 'open') return;
-      const id = new URL(e.data.url).searchParams.get('status');
+      const u = new URL(e.data.url).searchParams;
+      const id = u.get('status');
       if (id && me) reloadGroups().then(gs => openStatusLink(id, me, gs));
+      else if (u.get('idea') && me) { loadIdeas().catch(() => {}); setScreen({ name: 'idea', id: u.get('idea') }); }
     };
     navigator.serviceWorker.addEventListener('message', onMsg);
     return () => navigator.serviceWorker.removeEventListener('message', onMsg);
-  }, [me?.id]);
+  }, [me?.id, loadIdeas]);
 
   const shareStatus = async (s) => {
     const url = `${appBase()}?status=${s.id}`;
@@ -263,6 +282,23 @@ export default function App() {
   }, [me?.id, groupId, tick]);
   const badges = buildBadges(counts, Object.fromEntries([...history, ...statuses].map(x => [x.activity, x.icon])));
 
+  // Bucket List: Aktionen mit sofortiger Anzeige, danach neu laden
+  const ideaAction = async (fn, msg) => {
+    try { await fn(); if (msg) setToast(msg); } catch (e) { setToast('Hat nicht geklappt: ' + e.message); }
+    loadIdeas().catch(() => {});
+  };
+  const voteIdea = (i, response) => {
+    setIdeas(list => list && list.map(x => x.id !== i.id ? x : { ...x, idea_votes: [
+      ...(x.idea_votes || []).filter(v => v.profile_id !== me.id),
+      ...(response ? [{ profile_id: me.id, response, profiles: me }] : [])] }));
+    ideaAction(() => api.voteIdea(i.id, response), response === 'yes' ? 'Alle sehen: du hättest Lust' : null);
+  };
+  const voteOption = (o, ok) => {
+    setIdeas(list => list && list.map(x => ({ ...x, idea_options: (x.idea_options || []).map(y => y.id !== o.id ? y : { ...y, idea_option_votes: [
+      ...(y.idea_option_votes || []).filter(v => v.profile_id !== me.id), ...(ok === null ? [] : [{ profile_id: me.id, ok }])] }) })));
+    ideaAction(() => api.voteOption(o.id, ok));
+  };
+
   if (boot.loading) return <div className="app"><div className="spinner" aria-label="Lädt" /></div>;
   if (boot.error) return (
     <div className="app"><div className="screen empty">
@@ -304,7 +340,8 @@ export default function App() {
         </div>
       )}
       {screen.name === 'feed' && (
-        <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} members={members} badges={badges} onHistory={() => { loadHistory().catch(() => {}); go('history'); }} loading={loadingFeed && !statuses.length}
+        <Feed me={me} groups={groups} groupId={groupId} setGroupId={setGroupId} statuses={statuses} members={members} badges={badges}
+          ideas={ideas} onBucket={() => { if (groupId) markBucketSeen(groupId); go('bucket'); }} onHistory={() => { loadHistory().catch(() => {}); go('history'); }} loading={loadingFeed && !statuses.length}
           onOpen={(id) => go('detail', { id })} onRespond={respond} onCreate={() => go('create')} onQuick={(kind) => go('quick', { kind })}
           onGroups={() => go('groups')} onProfile={() => go('profile')} />
       )}
@@ -324,9 +361,37 @@ export default function App() {
           onBack={() => go('feed')} onOpen={(id) => go('detail', { id, from: 'history' })} />
       )}
       {screen.name === 'create' && group && (
-        <Create me={me} group={group} onClose={() => go('feed')}
-          onPosted={async () => { await loadStatuses(); go('feed'); setToast('Dein Status ist online'); }} />
+        <Create me={me} group={group} prefill={screen.prefill} onClose={() => go(screen.prefill ? 'idea' : 'feed', screen.prefill ? { id: screen.prefill.ideaId } : {})}
+          onIdea={ideas !== null ? (pre) => go('idea-new', { prefill: pre }) : null}
+          onPosted={async () => { await loadStatuses(); loadIdeas().catch(() => {}); go('feed'); setToast(screen.prefill ? 'Termin steht – alle mit Lust bekommen Bescheid' : 'Dein Status ist online'); }} />
       )}
+      {screen.name === 'bucket' && (
+        <BucketList me={me} group={group} ideas={ideas} onBack={() => go('feed')} onNew={() => go('idea-new')}
+          onOpen={(id) => go('idea', { id })} onVote={voteIdea} />
+      )}
+      {(screen.name === 'idea-new' || screen.name === 'idea-edit') && group && (
+        <IdeaForm me={me} group={group} prefill={screen.prefill} existing={screen.name === 'idea-edit' ? (ideas || []).find(i => i.id === screen.id) : null}
+          onClose={() => go(screen.name === 'idea-edit' ? 'idea' : 'bucket', { id: screen.id })}
+          onSave={async (data) => {
+            if (screen.name === 'idea-edit') { await api.updateIdea(screen.id, data); await loadIdeas(); go('idea', { id: screen.id }); setToast('Gespeichert'); }
+            else { const i = await api.createIdea({ group_id: group.id, ...data }); await loadIdeas(); go('idea', { id: i.id }); setToast('Steht auf der Bucket List'); }
+          }} />
+      )}
+      {screen.name === 'idea' && (() => {
+        const i = (ideas || []).find(x => x.id === screen.id);
+        if (!i) return <BucketList me={me} group={group} ideas={ideas} onBack={() => go('feed')} onNew={() => go('idea-new')} onOpen={(id) => go('idea', { id })} onVote={voteIdea} />;
+        return (
+          <IdeaDetail i={i} me={me} group={group} members={members} toast={setToast} onBack={() => go('bucket')}
+            onVote={voteIdea} onEdit={() => go('idea-edit', { id: i.id })}
+            onDelete={async () => { await api.deleteIdea(i.id); await loadIdeas(); go('bucket'); setToast('Idee gelöscht'); }}
+            onStartPoll={() => ideaAction(() => api.updateIdea(i.id, { stage: 'poll' }), 'Schlag jetzt Zeiträume vor')}
+            onAddOption={(from, to) => ideaAction(() => api.addIdeaOption(i.id, from, to))}
+            onDeleteOption={(o) => ideaAction(() => api.deleteIdeaOption(o.id))}
+            onVoteOption={voteOption}
+            onPlan={(o) => go('create', { prefill: { ideaId: i.id, title: i.title, icon: i.icon, note: i.note, from: o?.starts_on, to: o?.ends_on } })}
+            onOpenStatus={(id) => go('detail', { id, from: 'bucket' })} />
+        );
+      })()}
       {screen.name === 'edit' && group && statuses.find(s => s.id === screen.id) && (
         <Create me={me} group={group} existing={statuses.find(s => s.id === screen.id)} onClose={() => go('detail', { id: screen.id })}
           onPosted={async () => { await loadStatuses(); go('detail', { id: screen.id }); setToast('Änderungen gespeichert'); }} />

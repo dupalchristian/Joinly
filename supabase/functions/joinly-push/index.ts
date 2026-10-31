@@ -16,6 +16,20 @@ const emo = (i?: string) => (i && i.startsWith('img:') ? ({ joint: '🌿', karte
 const time = (iso: string) =>
   new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
 
+const MON = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'];
+const shortDay = (iso: string) => {
+  const d = new Date(new Date(iso).toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
+  return `${d.getDate()}. ${MON[d.getMonth()]}`;
+};
+const multiDay = (a: string, b: string) =>
+  new Date(a).toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' }) !== new Date(new Date(b).getTime() - 60000).toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' });
+
+// Wer bei einer Idee „Hätte Lust“ oder „Vielleicht“ gesagt hat
+async function ideaFans(sb: any, ideaId: string) {
+  const { data } = await sb.from('idea_votes').select('profile_id').eq('idea_id', ideaId);
+  return (data ?? []).map((v: any) => v.profile_id);
+}
+
 function dayWord(iso: string) {
   const fmt = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' });
   const today = new Date();
@@ -49,6 +63,8 @@ Deno.serve(async (req) => {
     targets = (prefs ?? [])
       .filter((p) => s.kind === 'plan' ? (p.push_activities ?? []).includes(s.activity) : p.push_free !== false)
       .map((p) => p.id);
+    // Aus der Bucket List geplant: alle, die Lust hatten, bekommen Bescheid
+    if (s.idea_id) targets = [...new Set([...targets, ...(await ideaFans(sb, s.idea_id)).filter((id: string) => ids.includes(id))])];
     const name = author?.first_name ?? 'Jemand';
     const where = s.place_name ? ` · ${s.place_name}` : '';
     if (s.kind === 'free') {
@@ -57,6 +73,12 @@ Deno.serve(async (req) => {
     } else if (s.kind === 'open') {
       title = `${name}: Kommt vorbei! 🚪`;
       body = `${s.place_name ?? ''} bis ${time(s.ends_at)} Uhr${s.note ? ' – ' + s.note : ''}`.trim();
+    } else if (s.idea_id) {
+      title = `Termin steht: ${s.activity} ${emo(s.icon)}`.trim();
+      body = multiDay(s.starts_at, s.ends_at)
+        ? `${shortDay(s.starts_at)} – ${shortDay(new Date(new Date(s.ends_at).getTime() - 60000).toISOString())}${where}`
+        : `${shortDay(s.starts_at)}, ${time(s.starts_at)} – ${time(s.ends_at)} Uhr${where}`;
+      body += ' · Sag zu oder ab';
     } else {
       title = `${name} ist offen für ${s.activity} ${emo(s.icon)}`.trim();
       body = `${dayWord(s.starts_at)}, ${time(s.starts_at)} – ${time(s.ends_at)} Uhr${where}`;
@@ -71,6 +93,26 @@ Deno.serve(async (req) => {
     title = s.kind === 'open' ? `${who?.first_name ?? 'Jemand'} kommt vorbei` : `${who?.first_name ?? 'Jemand'} ist dabei ✓`;
     body = s.kind === 'plan' ? `bei ${s.activity}` : 'Schau in Joinly, wer noch kommt.';
     url = `${APP_URL}?status=${s.id}`;
+  } else if (type === 'idea' || type === 'idea_poll') {
+    const i = record;
+    const [{ data: author }, { data: group }, { data: members }] = await Promise.all([
+      sb.from('profiles').select('first_name').eq('id', i.profile_id).single(),
+      sb.from('groups').select('name').eq('id', i.group_id).single(),
+      sb.from('memberships').select('profile_id').eq('group_id', i.group_id).eq('status', 'active').neq('profile_id', i.profile_id)
+    ]);
+    const ids = (members ?? []).map((m) => m.profile_id);
+    const name = author?.first_name ?? 'Jemand';
+    if (type === 'idea') {
+      targets = ids;
+      title = `${name} hat eine neue Idee 🪣`;
+      body = `${emo(i.icon)} ${i.title}${i.timeframe ? ' · ' + i.timeframe : ''} – hättest du Lust?`.trim();
+    } else {
+      targets = (await ideaFans(sb, i.id)).filter((id: string) => ids.includes(id));
+      title = `Termin gesucht: ${i.title} ${emo(i.icon)}`.trim();
+      body = `${name} sucht einen Termin. Stimm ab, wann es dir passt.`;
+    }
+    if (group?.name) body += ` (${group.name})`;
+    url = `${APP_URL}?idea=${i.id}`;
   } else {
     return new Response('unknown type', { status: 400 });
   }

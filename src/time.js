@@ -37,3 +37,27 @@ export function nextHalfHour(now = new Date()) {
   d.setMinutes(d.getMinutes() < 30 ? 30 : 60, 0, 0);
   return hhmm(d);
 }
+
+export const shortDate = (d) => `${WD_SHORT[d.getDay()]}, ${d.getDate()}. ${MON[d.getMonth()]}`;
+export const withYear = (d, now = new Date()) => d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : '';
+
+// Geht über mehrere Tage? (Ende kurz nach Mitternacht zählt noch zum Vortag)
+export const multiDay = (s) => dayDiff(new Date(new Date(s.ends_at).getTime() - 60000), new Date(s.starts_at)) > 0;
+
+// „Heute · Sa, 1. Nov. · 10:00 – 12:00 Uhr“ oder bei mehreren Tagen „Sa, 7. Aug. – Sa, 14. Aug. 2027“
+export function whenText(s, now = new Date()) {
+  const a = new Date(s.starts_at);
+  if (!multiDay(s)) return `${dayLabel(a, now)}${withYear(a, now)} · ${hhmm(a)} – ${hhmm(s.ends_at)} Uhr`;
+  const b = new Date(new Date(s.ends_at).getTime() - 60000);
+  return `${shortDate(a)} – ${shortDate(b)}${withYear(b, now)}`;
+}
+
+// Zeitraum als Text, z. B. für Terminvorschläge: „Sa, 7. Aug. – Sa, 14. Aug. 2027“ (Datumswerte als „YYYY-MM-DD“)
+export const parseDay = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+export const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export function rangeText(fromKey, toKey, now = new Date()) {
+  const a = parseDay(fromKey), b = parseDay(toKey);
+  if (fromKey === toKey) return `${shortDate(a)}${withYear(a, now)}`;
+  return `${shortDate(a)} – ${shortDate(b)}${withYear(b, now)}`;
+}
+export const MONTH_NAMES = MON_LONG;

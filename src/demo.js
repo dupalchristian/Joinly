@@ -1,5 +1,5 @@
 // Demo-Modus: gleiche Funktionen wie die echte Datenbank, aber nur im Browser.
-const KEY = 'joinly-demo-v4';
+const KEY = 'joinly-demo-v5';
 const ME = 'me';
 
 const at = (dayOffset, hhmm) => {
@@ -52,6 +52,24 @@ function seed() {
       { status_id: 'st1', profile_id: 'l' },
       { status_id: 'st3', profile_id: 't' }, { status_id: 'st3', profile_id: 'a' },
       { status_id: 'st5', profile_id: 'm' }
+    ],
+    ideas: [
+      { id: 'i1', group_id: 'g1', profile_id: 'm', title: 'Urlaub zusammen', icon: '🏝️', note: 'Eine Woche Kroatien oder Gardasee, Ferienhaus für alle', timeframe: 'August ' + (new Date().getFullYear() + 1), stage: 'poll', created_at: at(-5, '12:00') },
+      { id: 'i2', group_id: 'g1', profile_id: 'a', title: 'Fallschirmspringen', icon: '🪂', note: null, timeframe: 'Irgendwann', stage: 'idea', created_at: at(-2, '20:00') },
+      { id: 'i3', group_id: 'g1', profile_id: 's', title: 'Oktoberfest', icon: '🍻', note: 'Tisch reservieren!', timeframe: 'Herbst ' + (new Date().getFullYear() + 1), stage: 'idea', created_at: at(-1, '09:00') }
+    ],
+    ideaVotes: [
+      { idea_id: 'i1', profile_id: 's', response: 'yes' }, { idea_id: 'i1', profile_id: 'a', response: 'yes' }, { idea_id: 'i1', profile_id: 'l', response: 'maybe' },
+      { idea_id: 'i2', profile_id: 't', response: 'yes' },
+      { idea_id: 'i3', profile_id: 'm', response: 'yes' }, { idea_id: 'i3', profile_id: 'l', response: 'yes' }, { idea_id: 'i3', profile_id: 't', response: 'maybe' }
+    ],
+    ideaOptions: (() => { const y = new Date().getFullYear() + 1; return [
+      { id: 'o1', idea_id: 'i1', starts_on: `${y}-08-01`, ends_on: `${y}-08-08` },
+      { id: 'o2', idea_id: 'i1', starts_on: `${y}-08-15`, ends_on: `${y}-08-22` }
+    ]; })(),
+    optionVotes: [
+      { option_id: 'o1', profile_id: 's', ok: true }, { option_id: 'o1', profile_id: 'a', ok: false },
+      { option_id: 'o2', profile_id: 's', ok: true }, { option_id: 'o2', profile_id: 'a', ok: true }
     ],
     messages: [
       { id: 'mm1', status_id: 'st1', profile_id: 's', body: 'Ich bring Tee mit 🙂', created_at: at(0, '07:30') }
@@ -162,6 +180,28 @@ export const demoApi = {
     const d = load();
     if (!d.groupActivities.find(a => a.group_id === groupId && a.name === name)) d.groupActivities.push({ id: rid(), group_id: groupId, name, icon });
     changed();
+  },
+  async listIdeas(groupId) {
+    const d = load();
+    return (d.ideas || []).filter(i => i.group_id === groupId).sort((a, b) => b.created_at.localeCompare(a.created_at)).map(i => ({
+      ...i, author: profile(i.profile_id),
+      idea_votes: d.ideaVotes.filter(v => v.idea_id === i.id).map(v => ({ ...v, profiles: profile(v.profile_id) })),
+      idea_options: d.ideaOptions.filter(o => o.idea_id === i.id).map(o => ({ ...o, idea_option_votes: d.optionVotes.filter(v => v.option_id === o.id) })),
+      statuses: d.statuses.filter(s => s.idea_id === i.id).map(s => ({ id: s.id, starts_at: s.starts_at, ends_at: s.ends_at }))
+    }));
+  },
+  async createIdea(idea) { const i = { id: rid(), profile_id: ME, stage: 'idea', created_at: new Date().toISOString(), ...idea }; load().ideas.push(i); changed(); return i; },
+  async updateIdea(id, patch) { Object.assign(load().ideas.find(i => i.id === id), patch); changed(); },
+  async deleteIdea(id) { const d = load(); d.ideas = d.ideas.filter(i => i.id !== id); d.statuses.forEach(s => { if (s.idea_id === id) s.idea_id = null; }); changed(); },
+  async voteIdea(ideaId, response) {
+    const d = load(); d.ideaVotes = d.ideaVotes.filter(v => !(v.idea_id === ideaId && v.profile_id === ME));
+    if (response) d.ideaVotes.push({ idea_id: ideaId, profile_id: ME, response }); changed();
+  },
+  async addIdeaOption(ideaId, starts_on, ends_on) { load().ideaOptions.push({ id: rid(), idea_id: ideaId, starts_on, ends_on }); changed(); },
+  async deleteIdeaOption(id) { const d = load(); d.ideaOptions = d.ideaOptions.filter(o => o.id !== id); changed(); },
+  async voteOption(optionId, ok) {
+    const d = load(); d.optionVotes = d.optionVotes.filter(v => !(v.option_id === optionId && v.profile_id === ME));
+    if (ok !== null) d.optionVotes.push({ option_id: optionId, profile_id: ME, ok }); changed();
   },
   subscribe(groupId, cb) { listeners.add(cb); return () => listeners.delete(cb); },
   reset() { localStorage.removeItem(KEY); db = null; }

@@ -25,12 +25,15 @@ const check = ({ data, error }) => {
   return data;
 };
 
-// Falls die Spalte place_address in der Datenbank noch fehlt: ohne sie speichern
+// Falls eine neuere Spalte (place_address, idea_id) in der Datenbank noch fehlt: ohne sie speichern
 async function withoutMissingAddress(row, run) {
-  const res = await run(row);
-  if (res.error && /place_address/.test(res.error.message)) {
-    const { place_address, ...rest } = row;
-    return check(await run(rest));
+  let res = await run(row);
+  for (const col of ['place_address', 'idea_id']) {
+    if (res.error && res.error.message.includes(col) && col in row) {
+      const { [col]: _, ...rest } = row;
+      row = rest;
+      res = await run(row);
+    }
   }
   return check(res);
 }
@@ -294,6 +297,52 @@ const supabaseApi = {
     if (error && !String(error.message).includes('duplicate')) throw new Error(error.message);
   },
 
+  // Bucket List. Gibt null zurück, solange die Tabellen in der Datenbank noch fehlen.
+  async listIdeas(groupId) {
+    const res = await sb.from('ideas')
+      .select(`*, author:profiles!ideas_profile_id_fkey(id, first_name, ${AV}), idea_votes(profile_id, response, profiles(id, first_name, ${AV})), idea_options(id, starts_on, ends_on, idea_option_votes(profile_id, ok)), statuses(id, starts_at, ends_at)`)
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: false });
+    if (res.error && /ideas|relation|schema cache|does not exist/i.test(res.error.message)) return null;
+    if (res.error && missingAvatar(res.error) && AV !== 'avatar_color') { AV = 'avatar_color'; return this.listIdeas(groupId); }
+    return check(res);
+  },
+
+  async createIdea(idea) {
+    const id = await uid();
+    return check(await sb.from('ideas').insert({ ...idea, profile_id: id }).select().single());
+  },
+
+  async updateIdea(ideaId, patch) {
+    check(await sb.from('ideas').update(patch).eq('id', ideaId));
+  },
+
+  async deleteIdea(ideaId) {
+    check(await sb.from('ideas').delete().eq('id', ideaId));
+  },
+
+  // response: 'yes' | 'maybe' | null (zurücknehmen)
+  async voteIdea(ideaId, response) {
+    const id = await uid();
+    if (!response) check(await sb.from('idea_votes').delete().eq('idea_id', ideaId).eq('profile_id', id));
+    else check(await sb.from('idea_votes').upsert({ idea_id: ideaId, profile_id: id, response }, { onConflict: 'idea_id,profile_id' }));
+  },
+
+  async addIdeaOption(ideaId, startsOn, endsOn) {
+    check(await sb.from('idea_options').insert({ idea_id: ideaId, starts_on: startsOn, ends_on: endsOn }));
+  },
+
+  async deleteIdeaOption(optionId) {
+    check(await sb.from('idea_options').delete().eq('id', optionId));
+  },
+
+  // ok: true | false | null (zurücknehmen)
+  async voteOption(optionId, ok) {
+    const id = await uid();
+    if (ok === null) check(await sb.from('idea_option_votes').delete().eq('option_id', optionId).eq('profile_id', id));
+    else check(await sb.from('idea_option_votes').upsert({ option_id: optionId, profile_id: id, ok }, { onConflict: 'option_id,profile_id' }));
+  },
+
   // Live-Updates: ruft cb() bei jeder Änderung in der Gruppe auf
   subscribe(groupId, cb) {
     const ch = sb.channel('g-' + groupId)
@@ -303,6 +352,10 @@ const supabaseApi = {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_locations' }, cb)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'status_photos' }, cb)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'memberships', filter: 'group_id=eq.' + groupId }, cb)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ideas', filter: 'group_id=eq.' + groupId }, cb)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'idea_votes' }, cb)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'idea_options' }, cb)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'idea_option_votes' }, cb)
       .subscribe();
     return () => { sb.removeChannel(ch); };
   }

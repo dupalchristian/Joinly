@@ -3,7 +3,7 @@ import { api } from './api.js';
 import { Avatar, useExtras, WeatherBadge, placeText, Emo } from './common.jsx';
 import { statusTexts, goingPeople, myAnswer } from './status.js';
 import { Nav, Pin } from './Icons.jsx';
-import { dayLabel, hhmm } from './time.js';
+import { dayLabel, hhmm, whenText } from './time.js';
 import { googleMapsUrl, appleMapsUrl, isApple } from './services.js';
 import { PinField } from './Onboarding.jsx';
 
@@ -58,7 +58,7 @@ export default function PublicStatus({ s, me, onMe, onDone, onReload }) {
           <div className="icon-tile" aria-hidden="true"><Emo i={s.icon} /></div>
           <div className="col grow" style={{ gap: 3 }}>
             <span className="time" style={t.live ? { color: 'var(--accent)' } : undefined}>
-              {t.live && s.kind !== 'plan' ? t.time : `${dayLabel(new Date(s.starts_at))} · ${hhmm(s.starts_at)} – ${hhmm(s.ends_at)} Uhr`}
+              {t.live && s.kind !== 'plan' ? t.time : whenText(s)}
             </span>
             <span className="title">{t.title}</span>
             <span className="soft" style={{ fontSize: 14 }}>{t.sub}</span>

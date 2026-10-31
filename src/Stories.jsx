@@ -3,7 +3,7 @@ import { Avatar, useExtras, placeText, Emo } from './common.jsx';
 import { statusTexts, goingPeople } from './status.js';
 import RsvpBar, { answerSummary } from './Rsvp.jsx';
 import { Close, Pin, WeatherIcon, Plus } from './Icons.jsx';
-import { dayLabel, hhmm } from './time.js';
+import { dayLabel, hhmm, whenText } from './time.js';
 
 const DURATION = 6000;
 
@@ -60,7 +60,7 @@ function StorySlide({ s, me }) {
       <div style={{ fontSize: 88, lineHeight: 1 }} aria-hidden="true"><Emo i={s.icon} /></div>
       <h2 className="h1" style={{ fontSize: 32 }}>{t.title}</h2>
       <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
-        {t.live && (s.kind || 'plan') !== 'plan' ? t.time : `${dayLabel(new Date(s.starts_at))} · ${hhmm(s.starts_at)} – ${hhmm(s.ends_at)} Uhr`}
+        {t.live && (s.kind || 'plan') !== 'plan' ? t.time : whenText(s)}
       </span>
       {s.note && <p className="soft" style={{ margin: 0, fontSize: 18, lineHeight: '26px' }}>„{s.note}“</p>}
       <div className="row" style={{ gap: 16, justifyContent: 'center', flexWrap: 'wrap', color: 'var(--soft)' }}>

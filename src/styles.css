@@ -160,3 +160,12 @@ textarea.input { height: auto; padding: 12px 14px; resize: none; }
 .badge-mini { position: absolute; right: -4px; top: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: #1F1F1F; border: 1.5px solid #555; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; padding: 0 2px; }
 .badge-mini.gold { border-color: var(--accent); background: #2A2416; }
 .avatar-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+
+/* Bucket List */
+.text-accent, .small.accent { color: var(--accent); }
+.bucket-strip { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; margin-top: 10px; display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; min-height: 58px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.bucket-strip:active { opacity: 0.8; }
+.bucket-ico { width: 36px; height: 36px; border-radius: 11px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+.planned-toggle { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
+.planned-row { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: var(--surface); }

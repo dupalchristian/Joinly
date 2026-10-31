@@ -4,7 +4,8 @@ import { buildStories, StoryRow, StoryViewer } from './Stories.jsx';
 import { kindOf, statusTexts, goingPeople } from './status.js';
 import RsvpBar, { answerSummary } from './Rsvp.jsx';
 import { Pin, Plus, Users } from './Icons.jsx';
-import { dayLabel, hhmm, longDate, startOfDay } from './time.js';
+import { addDays, dayLabel, hhmm, longDate, startOfDay, whenText } from './time.js';
+import { BucketStrip } from './Bucket.jsx';
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -44,7 +45,7 @@ function StatusCard({ s, me, badges, onOpen, onRespond }) {
   );
 }
 
-export default function Feed({ me, groups, groupId, setGroupId, statuses, members = [], badges = {}, loading, onHistory, onOpen, onRespond, onCreate, onQuick, onGroups, onProfile }) {
+export default function Feed({ me, groups, groupId, setGroupId, statuses, members = [], badges = {}, ideas, onBucket, loading, onHistory, onOpen, onRespond, onCreate, onQuick, onGroups, onProfile }) {
   const now = useClock();
   const [story, setStory] = useState(null);
   const group = groups.find(g => g.id === groupId);
@@ -52,8 +53,13 @@ export default function Feed({ me, groups, groupId, setGroupId, statuses, member
   const pending = groups.filter(g => g.status === 'pending');
 
   const interests = me.interests;
-  const visible = statuses.filter(s => new Date(s.ends_at) > now &&
-    (!interests || s.profile_id === me.id || kindOf(s) !== 'plan' || interests.includes(s.activity)));
+  const shown = statuses.filter(s => new Date(s.ends_at) > now &&
+    (!interests || s.profile_id === me.id || kindOf(s) !== 'plan' || s.idea_id || interests.includes(s.activity)));
+  // Was mehr als eine Woche weg ist (z. B. Urlaub im August), steht klein unter „Fest geplant“
+  const weekEnd = addDays(startOfDay(now), 7);
+  const visible = shown.filter(s => new Date(s.starts_at) < weekEnd);
+  const later = shown.filter(s => new Date(s.starts_at) >= weekEnd);
+  const [showLater, setShowLater] = useState(false);
 
   const sections = [];
   const liveNow = visible.filter(s => new Date(s.starts_at) <= now);
@@ -107,6 +113,8 @@ export default function Feed({ me, groups, groupId, setGroupId, statuses, member
         </div>
       )}
 
+      {group && <BucketStrip ideas={ideas} me={me} groupId={group.id} onOpen={onBucket} />}
+
       {pending.length > 0 && (
         <div className="banner" style={{ marginTop: 16 }}>
           Deine Anfrage für {pending.map(g => `„${g.name}“`).join(', ')} wartet noch auf die Freigabe durch den Admin.
@@ -115,7 +123,7 @@ export default function Feed({ me, groups, groupId, setGroupId, statuses, member
 
       {loading && <div className="spinner" aria-label="Lädt" />}
 
-      {!loading && group && sections.length === 0 && (
+      {!loading && group && sections.length === 0 && later.length === 0 && (
         <div className="empty">Gerade ist niemand offen für etwas.<br />Sei der Erste – was hättest du Lust zu machen?</div>
       )}
       {!loading && !group && (
@@ -133,6 +141,25 @@ export default function Feed({ me, groups, groupId, setGroupId, statuses, member
           ))}
         </section>
       ))}
+
+      {later.length > 0 && (
+        <section className="section stack" aria-label="Fest geplant" style={{ gap: 10 }}>
+          <button className="planned-toggle" onClick={() => setShowLater(!showLater)} aria-expanded={showLater}>
+            <h2 className="label" style={{ margin: 0 }}>📌 Fest geplant ({later.length})</h2>
+            <span className="muted" style={{ fontSize: 18 }} aria-hidden="true">{showLater ? '▴' : '▾'}</span>
+          </button>
+          {showLater && later.map(s => (
+            <button key={s.id} className="planned-row" onClick={() => onOpen(s.id)}>
+              <span className="icon-tile" style={{ width: 38, height: 38, fontSize: 20 }} aria-hidden="true"><Emo i={s.icon} /></span>
+              <span className="col grow" style={{ gap: 2, minWidth: 0 }}>
+                <span style={{ fontWeight: 700 }}>{s.activity}</span>
+                <span className="small muted">{whenText(s)}</span>
+              </span>
+              <span className="small soft">{goingPeople(s).length} dabei</span>
+            </button>
+          ))}
+        </section>
+      )}
 
       {group && (
         <button className="btn ghost block" style={{ marginTop: 28 }} onClick={onHistory}>🕘 Verlauf: vergangene Aktivitäten</button>

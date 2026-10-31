@@ -3,7 +3,7 @@ import { api } from './api.js';
 import { Emo, Avatar, useExtras, homeOf, placeOf } from './common.jsx';
 import { Back, Chat, Nav, Pin, Send, Share, Trash, WeatherIcon, Close } from './Icons.jsx';
 import { statusTexts, kindOf, yesList, maybeList, noList, myAnswer, respOf, isLive } from './status.js';
-import { dayLabel, hhmm } from './time.js';
+import { dayLabel, hhmm, whenText } from './time.js';
 import { googleMapsUrl, appleMapsUrl, isApple } from './services.js';
 import RsvpBar from './Rsvp.jsx';
 import MapView from './MapView.jsx';
@@ -101,7 +101,7 @@ export default function Detail({ s, me, badges = {}, onBack, onRespond, onDelete
         <div className="col" style={{ gap: 6 }}>
           <span style={{ fontSize: 14, color: ended ? 'var(--muted)' : 'var(--accent)', fontWeight: 700 }}>
             {ended ? `Beendet · ${dayLabel(new Date(s.starts_at))}, ${hhmm(s.starts_at)} Uhr`
-              : t.live && k !== 'plan' ? t.time : `${dayLabel(new Date(s.starts_at))} · ${hhmm(s.starts_at)} – ${hhmm(s.ends_at)} Uhr`}
+              : t.live && k !== 'plan' ? t.time : whenText(s)}
           </span>
           <h1 className="h1"><Emo i={s.icon} /> {t.title}</h1>
           <span className="soft">{t.sub}</span>
