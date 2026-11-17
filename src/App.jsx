@@ -40,8 +40,19 @@ function takeParams() {
   const code = p.get('invite');
   const status = p.get('status');
   const idea = p.get('idea');
+  const act = p.get('do');          // Knopf aus einer Push-Nachricht: rsvp-yes | rsvp-maybe | vote-yes
   if (code || status || idea) history.replaceState(null, '', location.pathname);
-  return { code, status, idea };
+  return { code, status, idea, act };
+}
+
+// Knopf aus der Push-Nachricht direkt erledigen. Gibt einen Hinweistext zurück (oder null).
+async function runPushAction(act, statusId, ideaId) {
+  try {
+    if (statusId && act === 'rsvp-yes') { await api.respond(statusId, 'yes'); return 'Du bist dabei 🙌'; }
+    if (statusId && act === 'rsvp-maybe') { await api.respond(statusId, 'maybe'); return 'Gespeichert: du kommst evtl. nach'; }
+    if (ideaId && act === 'vote-yes') { await api.voteIdea(ideaId, 'yes'); return 'Alle sehen: du hättest Lust'; }
+  } catch { /* z. B. eigener Status oder schon vorbei */ }
+  return null;
 }
 
 export default function App() {
@@ -98,7 +109,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const { code, status: statusLink, idea: ideaLink } = takeParams();
+        const { code, status: statusLink, idea: ideaLink, act } = takeParams();
         const [{ me, anonymous }, info] = await Promise.all([
           api.init(),
           code ? api.inviteInfo(code).catch(() => null) : Promise.resolve(null)
@@ -120,6 +131,7 @@ export default function App() {
           if (inv) { await api.requestJoin(inv.code); setToast(`Anfrage für „${inv.group_name}“ gesendet`); setInvite(null); }
           const gs = await reloadGroups();
           if (gs.length === 0) setScreen({ name: 'groups' });
+          if (act) { const msg = await runPushAction(act, statusLink, ideaLink); if (msg) setToast(msg); }
           if (statusLink) await openStatusLink(statusLink, me, gs);
           else if (ideaLink) setScreen({ name: 'idea', id: ideaLink });
           refreshPush();
@@ -199,12 +211,16 @@ export default function App() {
       if (e.data?.type !== 'open') return;
       const u = new URL(e.data.url).searchParams;
       const id = u.get('status');
-      if (id && me) reloadGroups().then(gs => openStatusLink(id, me, gs));
-      else if (u.get('idea') && me) { loadIdeas().catch(() => {}); setScreen({ name: 'idea', id: u.get('idea') }); }
+      if (!me) return;
+      runPushAction(u.get('do'), id, u.get('idea')).then(msg => {
+        if (msg) setToast(msg);
+        if (id) reloadGroups().then(gs => openStatusLink(id, me, gs)).then(() => loadStatuses().catch(() => {}));
+        else if (u.get('idea')) { loadIdeas().catch(() => {}); setScreen({ name: 'idea', id: u.get('idea') }); }
+      });
     };
     navigator.serviceWorker.addEventListener('message', onMsg);
     return () => navigator.serviceWorker.removeEventListener('message', onMsg);
-  }, [me?.id, loadIdeas]);
+  }, [me?.id, loadIdeas, loadStatuses]);
 
   const shareStatus = async (s) => {
     const url = `${appBase()}?status=${s.id}`;

@@ -104,7 +104,7 @@ export default function Profile({ me, group, counts = [], onBack, onSaved, toast
           <span>Wenn jemand „gerade frei“ ist oder „Kommt vorbei“ postet</span>
           <button className={'switch' + (pushFree ? ' on' : '')} role="switch" aria-checked={pushFree} aria-label="Push bei gerade frei und Kommt vorbei" onClick={() => setPushFree(!pushFree)} />
         </div>
-        <span className="small muted">Wenn jemand bei deinem Status zusagt, bekommst du immer eine Nachricht. Außerdem bei diesen Aktivitäten:</span>
+        <span className="small muted">Zusagen bei deinem Status, Erinnerungen 30 Min. vor dem Start und „Hätte Lust“ bei deinen Ideen bekommst du immer. Bei neuen Aktivitäten: {push.length ? 'nur bei diesen' : 'bei allen – oder wähle hier nur bestimmte aus'}:</span>
         <div className="chips wrap">
           {acts.map(a => (
             <button key={a.name} className={'chip accent' + (push.includes(a.name) ? ' on' : '')} onClick={() => toggle(push, setPush, a.name)}><Emo i={a.icon} /> {a.name}</button>

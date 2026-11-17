@@ -6,6 +6,39 @@ import RsvpBar, { answerSummary } from './Rsvp.jsx';
 import { Pin, Plus, Users } from './Icons.jsx';
 import { addDays, dayLabel, hhmm, longDate, startOfDay, whenText } from './time.js';
 import { BucketStrip } from './Bucket.jsx';
+import { enablePush, pushState } from './push.js';
+
+// Hinweis „Push einschalten“: ohne Push merkt keiner, wenn jemand Lust hat
+const NUDGE_KEY = 'joinly-push-nudge';
+function PushNudge() {
+  const [state, setState] = useState(null);
+  const [hidden, setHidden] = useState(() => {
+    try { return Date.now() - Number(localStorage.getItem(NUDGE_KEY) || 0) < 3 * 86400000; } catch { return false; }
+  });
+  useEffect(() => { pushState().then(setState).catch(() => {}); }, []);
+  if (hidden || (state !== 'off' && state !== 'install')) return null;
+  const later = () => { try { localStorage.setItem(NUDGE_KEY, String(Date.now())); } catch { /* egal */ } setHidden(true); };
+  const turnOn = async () => { try { setState(await enablePush()); } catch { setState('off'); } };
+  return (
+    <div className="push-nudge" role="region" aria-label="Push-Nachrichten">
+      <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+        <span className="push-nudge-ico" aria-hidden="true">🔔</span>
+        <div className="col grow" style={{ gap: 3 }}>
+          <span style={{ fontWeight: 700 }}>Verpass nichts mehr</span>
+          <span className="small soft" style={{ lineHeight: '18px' }}>
+            {state === 'install'
+              ? 'Auf dem iPhone kommen Nachrichten nur, wenn Joinly auf dem Home-Bildschirm liegt: unten auf Teilen tippen → „Zum Home-Bildschirm“ → Joinly von dort öffnen.'
+              : 'Bekomm Bescheid, sobald jemand Lust hat – und sag direkt aus der Nachricht zu.'}
+          </span>
+        </div>
+      </div>
+      <div className="row" style={{ gap: 8 }}>
+        {state === 'off' && <button className="btn primary" style={{ height: 42, flex: 1 }} onClick={turnOn}>Push einschalten</button>}
+        <button className="btn ghost" style={{ height: 42, flex: state === 'off' ? '0 0 auto' : 1 }} onClick={later}>Später</button>
+      </div>
+    </div>
+  );
+}
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -114,6 +147,8 @@ export default function Feed({ me, groups, groupId, setGroupId, statuses, member
       )}
 
       {group && <BucketStrip ideas={ideas} me={me} groupId={group.id} onOpen={onBucket} />}
+
+      {group && <PushNudge />}
 
       {pending.length > 0 && (
         <div className="banner" style={{ marginTop: 16 }}>

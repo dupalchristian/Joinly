@@ -169,3 +169,6 @@ textarea.input { height: auto; padding: 12px 14px; resize: none; }
 .bucket-ico { width: 36px; height: 36px; border-radius: 11px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
 .planned-toggle { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
 .planned-row { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: var(--surface); }
+.push-nudge { margin-top: 12px; padding: 14px; border-radius: 16px; display: flex; flex-direction: column; gap: 12px;
+  background: linear-gradient(135deg, #221D12 0%, var(--surface) 70%); border: 1px solid #3A3220; }
+.push-nudge-ico { width: 36px; height: 36px; border-radius: 11px; background: #2E2717; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }

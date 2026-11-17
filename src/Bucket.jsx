@@ -41,8 +41,8 @@ const resolveTimeframe = (t, now = new Date()) =>
 
 // ---------- Streifen im Feed ----------
 
+// Immer sichtbar – auch während des Ladens oder wenn die Liste noch leer ist
 export function BucketStrip({ ideas, me, groupId, onOpen }) {
-  if (ideas === null) return null; // Datenbank noch nicht eingerichtet
   const open = (ideas || []).filter(i => i.stage !== 'planned');
   const vote = open.find(i => needsMyVote(i, me));
   const seen = readSeen(groupId);
