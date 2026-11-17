@@ -65,7 +65,7 @@ export function useExtras(s, me) {
 
 export function WeatherBadge({ wx }) {
   if (!wx) return null;
-  return <span className="wx"><WeatherIcon kind={wx.kind} />{wx.temp}°</span>;
+  return <span className="wx" title={wx.warn || undefined}><WeatherIcon kind={wx.kind} />{wx.temp}°{wx.warn ? " ⚠️" : ""}</span>;
 }
 
 export function placeText(s, drive) {

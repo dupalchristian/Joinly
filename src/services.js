@@ -32,9 +32,9 @@ const WMO = (code) => {
 // Wetter für Ort und Zeitfenster: Regen ja/nein + Temperatur
 export async function weatherFor(lat, lng, startIso, endIso) {
   const la = lat.toFixed(2), lo = lng.toFixed(2);
-  const data = await cached('w' + la + lo, 30 * 60 * 1000, async () => {
+  const data = await cached('w2' + la + lo, 30 * 60 * 1000, async () => {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}` +
-      '&hourly=temperature_2m,precipitation_probability,weather_code&timezone=auto&forecast_days=8';
+      '&hourly=temperature_2m,precipitation_probability,weather_code,wind_gusts_10m&timezone=auto&forecast_days=8';
     const r = await fetch(url);
     if (!r.ok) throw new Error('Wetter nicht erreichbar');
     return r.json();
@@ -54,7 +54,19 @@ export async function weatherFor(lat, lng, startIso, endIso) {
   let w = WMO(worst);
   if (w.kind === 'rain' && rain < 35) w = { kind: 'cloud', label: 'Bewölkt, eher trocken' };
   const avg = Math.round(temps.reduce((a, b) => a + b, 0) / temps.length);
-  return { ...w, temp: avg, rain, dry: w.kind !== 'rain' && w.kind !== 'snow' };
+  const gust = Math.round(Math.max(0, ...idx.map(i => data.hourly.wind_gusts_10m?.[i] ?? 0)));
+  return { ...w, temp: avg, rain, gust, warn: weatherWarning(worst, rain, gust, temps), dry: w.kind !== 'rain' && w.kind !== 'snow' };
+}
+
+// Wetter-Warnung: nur bei Wetter, das den Plan wirklich kippen kann
+function weatherWarning(code, rain, gust, temps) {
+  if (code >= 95) return 'Gewitter möglich, lieber einen Plan B drinnen überlegen.';
+  if (gust >= 60) return `Starker Wind (Böen bis ${gust} km/h).`;
+  if ((code >= 71 && code <= 77 || code === 85 || code === 86) && rain >= 50) return 'Schnee erwartet, plant etwas mehr Zeit ein.';
+  if (rain >= 70) return `Regen sehr wahrscheinlich (${rain} %). Schirm einpacken oder nach drinnen ausweichen.`;
+  if (Math.max(...temps) >= 32) return 'Sehr heiß, genug zu trinken mitnehmen.';
+  if (Math.min(...temps) <= -5) return 'Sehr kalt, warm anziehen.';
+  return null;
 }
 
 // Ortssuche (OpenStreetMap)

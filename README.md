@@ -25,4 +25,4 @@ npm run dev
 ## Noch offen (nächste Version)
 - Push-Nachrichten für ausgewählte Aktivitäten (Einstellungen werden schon gespeichert)
 - SMS-Bestätigung der Handynummer
-- Verkehrsmittel wählbar, Wetter-Warnung, Status nur für bestimmte Personen, Rückblick, Mindestteilnehmer
+- Verkehrsmittel wählbar, Status nur für bestimmte Personen, Rückblick, Mindestteilnehmer

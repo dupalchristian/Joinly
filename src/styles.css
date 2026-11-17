@@ -45,6 +45,7 @@ a { color: var(--accent); }
 .wrap { flex-wrap: wrap; overflow: visible; }
 
 .card { background: var(--surface); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.card.warn { gap: 4px; background: #2E2414; border: 1px solid #5A4520; }
 .card-main { all: unset; cursor: pointer; display: flex; gap: 14px; align-items: flex-start; }
 .icon-tile { width: 46px; height: 46px; border-radius: 14px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
 .time { font-size: 13px; color: var(--muted); font-weight: 600; }

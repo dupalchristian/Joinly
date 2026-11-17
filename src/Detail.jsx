@@ -8,6 +8,7 @@ import { googleMapsUrl, appleMapsUrl, isApple } from './services.js';
 import RsvpBar from './Rsvp.jsx';
 import MapView from './MapView.jsx';
 import { shrinkImage } from './images.js';
+import { calendarLink } from './calendar.js';
 
 const ago = (iso) => {
   const m = Math.round((Date.now() - new Date(iso)) / 60000);
@@ -150,6 +151,18 @@ export default function Detail({ s, me, badges = {}, onBack, onRespond, onDelete
             </div>
           )}
         </div>
+
+        {!ended && wx?.warn && (
+          <div className="card warn" role="note">
+            <span style={{ fontWeight: 700 }}>⚠️ Wetter-Warnung</span>
+            <span className="small soft">{wx.warn}</span>
+          </div>
+        )}
+
+        {!ended && k === 'plan' && (() => {
+          const cal = calendarLink(s, t.title);
+          return <a className="btn ghost block" href={cal.href} download={cal.download} target="_blank" rel="noopener" style={{ color: "inherit" }}>📅 {cal.label}</a>;
+        })()}
 
         {!ended && hasPlace && (s.place_lat != null || s.place_address) && (
           isApple()
